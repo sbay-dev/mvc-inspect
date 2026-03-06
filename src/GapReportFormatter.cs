@@ -11,6 +11,7 @@ public class GapReportFormatter
     public string Format(
         ProjectSnapshot snapA, ProjectSnapshot snapB,
         List<FileDiff> diffs, List<RazorFileDiff> razorDiffs,
+        List<StaticFileDiff> staticDiffs,
         List<CsprojDiff> projDiffs, SlnDiff? slnDiff,
         GapSummary summary)
     {
@@ -34,6 +35,7 @@ public class GapReportFormatter
                       + summary.MembersOnlyInA + summary.MembersOnlyInB + summary.MembersModified
                       + summary.RazorOnlyInA + summary.RazorOnlyInB + summary.RazorModified
                       + summary.RazorElementsOnlyInA + summary.RazorElementsOnlyInB + summary.RazorElementsModified
+                      + summary.StaticOnlyInA + summary.StaticOnlyInB + summary.StaticModified
                       + summary.ProjOnlyInA + summary.ProjOnlyInB + summary.ProjDiffsCount
                       + summary.SlnProjectsOnlyInA + summary.SlnProjectsOnlyInB + summary.SlnProjectsModified;
 
@@ -57,6 +59,13 @@ public class GapReportFormatter
         sb.AppendLine($"  Razor elements missing    : {summary.RazorElementsOnlyInA}   (@model/@section/asp-for...)");
         sb.AppendLine($"  Razor elements extra      : {summary.RazorElementsOnlyInB}");
         sb.AppendLine($"  Razor elements modified   : {summary.RazorElementsModified}");
+        if (summary.StaticOnlyInA + summary.StaticOnlyInB + summary.StaticModified > 0)
+        {
+            sb.AppendLine(Line80Thin);
+            sb.AppendLine($"  Static files missing in [B]   : {summary.StaticOnlyInA}   (wwwroot/)");
+            sb.AppendLine($"  Static files extra in [B]     : {summary.StaticOnlyInB}");
+            sb.AppendLine($"  Static files modified         : {summary.StaticModified}   (content changed)");
+        }
         if (summary.ProjOnlyInA + summary.ProjOnlyInB + summary.ProjDiffsCount
           + summary.SlnProjectsOnlyInA + summary.SlnProjectsOnlyInB + summary.SlnProjectsModified > 0)
         {
@@ -278,6 +287,44 @@ public class GapReportFormatter
             }
         }
 
+        // -- Section 4: Static file gaps (wwwroot) ----------------------------
+        if (staticDiffs.Any())
+        {
+            sb.AppendLine("[4] STATIC FILE GAPS (wwwroot/)");
+            sb.AppendLine(Line80Thin);
+            sb.AppendLine();
+
+            var stMissing  = staticDiffs.Where(d => d.Status == DiffStatus.Missing).ToList();
+            var stExtra    = staticDiffs.Where(d => d.Status == DiffStatus.Extra).ToList();
+            var stModified = staticDiffs.Where(d => d.Status == DiffStatus.Modified).ToList();
+
+            if (stMissing.Any())
+            {
+                sb.AppendLine("  [MISSING] Static files in [A] not found in [B]:");
+                foreach (var f in stMissing)
+                    sb.AppendLine($"    - {f.RelativePath}  ({FormatSize(f.SizeA ?? 0)})");
+                sb.AppendLine();
+            }
+            if (stExtra.Any())
+            {
+                sb.AppendLine("  [EXTRA] Static files in [B] not in [A]:");
+                foreach (var f in stExtra)
+                    sb.AppendLine($"    + {f.RelativePath}  ({FormatSize(f.SizeB ?? 0)})");
+                sb.AppendLine();
+            }
+            if (stModified.Any())
+            {
+                sb.AppendLine("  [MODIFIED] Static files with different content:");
+                foreach (var f in stModified)
+                {
+                    sb.AppendLine($"    ~ {f.RelativePath}");
+                    sb.AppendLine($"        Size A: {FormatSize(f.SizeA ?? 0)}   B: {FormatSize(f.SizeB ?? 0)}");
+                    sb.AppendLine($"        Hash A: {f.HashA?[..12]}...   B: {f.HashB?[..12]}...");
+                }
+                sb.AppendLine();
+            }
+        }
+
         // -- Section 5: .csproj / .sln gaps ----------------------------------
         var projMissing  = projDiffs.Where(d => d.Status == DiffStatus.Missing).ToList();
         var projExtra    = projDiffs.Where(d => d.Status == DiffStatus.Extra).ToList();
@@ -407,8 +454,8 @@ public class GapReportFormatter
             }
         }
 
-        // -- Section 4: Developer task checklist ------------------------------
-        sb.AppendLine("[4] DEVELOPER TASK CHECKLIST");
+        // -- Section 6: Developer task checklist ------------------------------
+        sb.AppendLine("[6] DEVELOPER TASK CHECKLIST");
         sb.AppendLine(Line80Thin);
         sb.AppendLine();
 
@@ -452,6 +499,12 @@ public class GapReportFormatter
                 sb.AppendLine($"  [ ] {taskNum++:D2}. Fix {el.Category,-13}  : {r.RelativePath}  [A: {el.ValueA}  ->  B: {el.ValueB}]");
         }
 
+        // Static file tasks
+        foreach (var f in staticDiffs.Where(d => d.Status == DiffStatus.Missing))
+            sb.AppendLine($"  [ ] {taskNum++:D2}. Copy static file    : {f.RelativePath}");
+        foreach (var f in staticDiffs.Where(d => d.Status == DiffStatus.Modified))
+            sb.AppendLine($"  [ ] {taskNum++:D2}. Update static file  : {f.RelativePath}");
+
         foreach (var p in projDiffs.Where(d => d.Status == DiffStatus.Missing))
             sb.AppendLine($"  [ ] {taskNum++:D2}. Create .csproj      : {p.RelativePath}");
 
@@ -478,4 +531,11 @@ public class GapReportFormatter
 
         return sb.ToString();
     }
+
+    private static string FormatSize(long bytes) => bytes switch
+    {
+        < 1024         => $"{bytes} B",
+        < 1024 * 1024  => $"{bytes / 1024.0:F1} KB",
+        _              => $"{bytes / (1024.0 * 1024.0):F1} MB"
+    };
 }

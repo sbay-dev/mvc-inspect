@@ -36,6 +36,16 @@ public record RazorElementDiff(
     string? ValueA,
     string? ValueB);
 
+// ── Static file diff type ─────────────────────────────────────────────────────
+
+public record StaticFileDiff(
+    string RelativePath,
+    DiffStatus Status,
+    long? SizeA,
+    long? SizeB,
+    string? HashA,
+    string? HashB);
+
 // ── Gap report summary counters ──────────────────────────────────────────────
 
 public record GapSummary(
@@ -44,6 +54,7 @@ public record GapSummary(
     int MembersOnlyInA, int MembersOnlyInB, int MembersModified,
     int RazorOnlyInA, int RazorOnlyInB, int RazorModified,
     int RazorElementsOnlyInA, int RazorElementsOnlyInB, int RazorElementsModified,
+    int StaticOnlyInA, int StaticOnlyInB, int StaticModified,
     int ProjOnlyInA, int ProjOnlyInB, int ProjDiffsCount,
     int SlnProjectsOnlyInA, int SlnProjectsOnlyInB, int SlnProjectsModified);
 
@@ -82,6 +93,7 @@ public record SlnProjectDiff(
 public class ComparisonEngine
 {
     public (List<FileDiff> Diffs, List<RazorFileDiff> RazorDiffs,
+            List<StaticFileDiff> StaticDiffs,
             List<CsprojDiff> ProjDiffs, SlnDiff? SlnDiff,
             GapSummary Summary) Compare(
         ProjectSnapshot snapA, ProjectSnapshot snapB)
@@ -138,6 +150,12 @@ public class ComparisonEngine
             ref rzOnlyA, ref rzOnlyB, ref rzMod,
             ref rzElOnlyA, ref rzElOnlyB, ref rzElMod);
 
+        // ── Static file (wwwroot) comparison ────────────────────────────────
+        var staticDiffs = new List<StaticFileDiff>();
+        int stOnlyA = 0, stOnlyB = 0, stMod = 0;
+        CompareStaticFiles(snapA.StaticFiles, snapB.StaticFiles,
+            staticDiffs, ref stOnlyA, ref stOnlyB, ref stMod);
+
         // ── .csproj comparison ───────────────────────────────────────────────
         var projDiffs = new List<CsprojDiff>();
         int prOnlyA = 0, prOnlyB = 0, prMod = 0;
@@ -154,11 +172,13 @@ public class ComparisonEngine
             memOnlyA, memOnlyB, memMod,
             rzOnlyA, rzOnlyB, rzMod,
             rzElOnlyA, rzElOnlyB, rzElMod,
+            stOnlyA, stOnlyB, stMod,
             prOnlyA, prOnlyB, prMod,
             slnOnlyA, slnOnlyB, slnMod);
 
         return (diffs.Where(d => d.Status != DiffStatus.Identical).ToList(),
                 razorDiffs.Where(d => d.Status != DiffStatus.Identical).ToList(),
+                staticDiffs,
                 projDiffs,
                 slnDiff,
                 summary);
@@ -336,6 +356,55 @@ public class ComparisonEngine
 
     private static string Norm(string path) =>
         path.Replace('\\', '/').ToLowerInvariant();
+
+    // ── Static file (wwwroot) comparison ─────────────────────────────────────
+
+    private static void CompareStaticFiles(
+        List<StaticFileEntry> listA, List<StaticFileEntry> listB,
+        List<StaticFileDiff> result,
+        ref int onlyA, ref int onlyB, ref int modified)
+    {
+        string Key(StaticFileEntry f) =>
+            f.RelativePath.Replace('\\', '/').ToLowerInvariant();
+
+        var mapA = listA.ToDictionary(Key);
+        var mapB = listB.ToDictionary(Key);
+
+        foreach (var kvp in mapA)
+        {
+            if (mapB.TryGetValue(kvp.Key, out var bEntry))
+            {
+                if (kvp.Value.ContentHash != bEntry.ContentHash)
+                {
+                    modified++;
+                    result.Add(new StaticFileDiff(kvp.Value.RelativePath,
+                        DiffStatus.Modified,
+                        kvp.Value.SizeBytes, bEntry.SizeBytes,
+                        kvp.Value.ContentHash, bEntry.ContentHash));
+                }
+            }
+            else
+            {
+                onlyA++;
+                result.Add(new StaticFileDiff(kvp.Value.RelativePath,
+                    DiffStatus.Missing,
+                    kvp.Value.SizeBytes, null,
+                    kvp.Value.ContentHash, null));
+            }
+        }
+
+        foreach (var kvp in mapB)
+        {
+            if (!mapA.ContainsKey(kvp.Key))
+            {
+                onlyB++;
+                result.Add(new StaticFileDiff(kvp.Value.RelativePath,
+                    DiffStatus.Extra,
+                    null, kvp.Value.SizeBytes,
+                    null, kvp.Value.ContentHash));
+            }
+        }
+    }
 
     // ── .csproj comparison ────────────────────────────────────────────────────
 

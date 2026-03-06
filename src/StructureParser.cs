@@ -1,6 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using System.Security.Cryptography;
 
 namespace MvcStructureInspector;
 
@@ -18,7 +19,8 @@ public class StructureParser
         string name = Path.GetFileName(rootPath.TrimEnd(Path.DirectorySeparatorChar));
         var files      = new List<ParsedFile>();
         var razorFiles = new List<ParsedRazorFile>();
-        CollectFiles(rootPath, rootPath, files, razorFiles);
+        var staticFiles = new List<StaticFileEntry>();
+        CollectFiles(rootPath, rootPath, files, razorFiles, staticFiles);
 
         var csprojFiles = _options.IncludeProjectFiles
             ? ProjectFileParser.ParseCsprojFiles(rootPath)
@@ -27,21 +29,24 @@ public class StructureParser
             ? ProjectFileParser.ParseSln(rootPath)
             : null;
 
-        return new ProjectSnapshot(name, rootPath, files, razorFiles, csprojFiles, slnFile);
+        return new ProjectSnapshot(name, rootPath, files, razorFiles, staticFiles, csprojFiles, slnFile);
     }
 
     private void CollectFiles(string dir, string root,
-        List<ParsedFile> result, List<ParsedRazorFile> razorResult)
+        List<ParsedFile> result, List<ParsedRazorFile> razorResult,
+        List<StaticFileEntry> staticResult)
     {
         string dirName = Path.GetFileName(dir);
         if (ExcludedDirs.Contains(dirName, StringComparer.OrdinalIgnoreCase)) return;
         if (!_options.IncludeMigrations && dirName.Equals("Migrations", StringComparison.OrdinalIgnoreCase)) return;
 
+        bool isStaticDir = IsStaticAssetDir(dir, root);
+
         foreach (var file in Directory.GetFiles(dir))
         {
             string ext = Path.GetExtension(file).ToLowerInvariant();
 
-            if (ext == ".cs")
+            if (ext == ".cs" && !isStaticDir)
             {
                 string relative = Path.GetRelativePath(root, file);
                 var namespaces = ParseCsFile(file);
@@ -49,15 +54,42 @@ public class StructureParser
                 continue;
             }
 
-            if (ext == ".cshtml" && !_options.CsOnly)
+            if (ext == ".cshtml" && !_options.CsOnly && !isStaticDir)
             {
                 string relative = Path.GetRelativePath(root, file);
                 razorResult.Add(RazorParser.Parse(file, relative));
+                continue;
+            }
+
+            if (isStaticDir && !_options.CsOnly)
+            {
+                string relative = Path.GetRelativePath(root, file);
+                staticResult.Add(BuildStaticEntry(file, relative, ext));
             }
         }
 
         foreach (var sub in Directory.GetDirectories(dir))
-            CollectFiles(sub, root, result, razorResult);
+            CollectFiles(sub, root, result, razorResult, staticResult);
+    }
+
+    /// <summary>True if <paramref name="dir"/> is under wwwroot/ or is wwwroot itself.</summary>
+    private static bool IsStaticAssetDir(string dir, string root)
+    {
+        string rel = Path.GetRelativePath(root, dir).Replace('\\', '/').ToLowerInvariant();
+        return rel == "wwwroot" || rel.StartsWith("wwwroot/");
+    }
+
+    private static StaticFileEntry BuildStaticEntry(string filePath, string relative, string ext)
+    {
+        var fi = new FileInfo(filePath);
+        string hash;
+        try
+        {
+            using var stream = File.OpenRead(filePath);
+            hash = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+        }
+        catch { hash = ""; }
+        return new StaticFileEntry(relative, ext, fi.Length, hash);
     }
 
     // == Roslyn C# parsing ==================================================

@@ -7,8 +7,16 @@ public record ProjectSnapshot(
     string RootPath,
     List<ParsedFile> Files,
     List<ParsedRazorFile> RazorFiles,
+    List<StaticFileEntry> StaticFiles,
     List<ParsedCsprojFile> CsprojFiles,
     ParsedSlnFile? SlnFile);
+
+/// <summary>A non-code file found under wwwroot or similar static asset directories.</summary>
+public record StaticFileEntry(
+    string RelativePath,      // e.g. wwwroot/css/site.css
+    string Extension,
+    long   SizeBytes,
+    string ContentHash);      // SHA-256 for content comparison
 
 // ─── C# file ────────────────────────────────────────────────────────────────
 

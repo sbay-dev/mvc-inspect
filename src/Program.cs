@@ -63,10 +63,10 @@ if (cmpIdx >= 0)
     Console.ResetColor();
 
     var engine = new ComparisonEngine();
-    var (diffs, razorDiffs, projDiffs, slnDiff, summary) = engine.Compare(snapA, snapB);
+    var (diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary) = engine.Compare(snapA, snapB);
 
     var formatter = new GapReportFormatter();
-    string report = formatter.Format(snapA, snapB, diffs, razorDiffs, projDiffs, slnDiff, summary);
+    string report = formatter.Format(snapA, snapB, diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary);
 
     WriteOutput(report, resolvedOut, autoOpen);
     return 0;
