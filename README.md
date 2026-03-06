@@ -1,288 +1,199 @@
-# mvc-inspect
+# MVC Structure Inspector
 
-> **A .NET global CLI tool that generates a full text structure tree for ASP.NET Core MVC projects — powered by Roslyn.**
+> **A Roslyn-powered .NET global CLI tool for static structural analysis of ASP.NET Core MVC projects.**
 
-[![NuGet](https://img.shields.io/badge/dotnet%20tool-mvc--inspect-blue?logo=nuget)](https://github.com/sbay-dev/mvc-inspect)
+[![NuGet](https://img.shields.io/nuget/v/MvcStructureInspector?logo=nuget&label=NuGet)](https://www.nuget.org/packages/MvcStructureInspector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple?logo=dotnet)](https://dotnet.microsoft.com)
-[![Version](https://img.shields.io/badge/version-2.2.1-orange)](CHANGELOG.md)
+[![Tests](https://img.shields.io/badge/Tests-71%20passed-brightgreen)](https://github.com/sbay-dev/mvc-inspect/actions)
+[![Product Page](https://img.shields.io/badge/Product%20Page-sbay--dev.github.io-blue)](https://sbay-dev.github.io/mvc-inspect/)
 
 ---
 
-## ما هي الأداة؟ / What is it?
+## Overview
 
-**بالعربية:**  
-`mvc-inspect` أداة سطر أوامر (.NET Global Tool) تحلّل مشاريع ASP.NET Core MVC وتنتج تقريراً نصياً شجرياً كاملاً يشمل كل عنصر في الكود — مفيدة لـ:
-- ✅ مراجعة تصميم المشروع (Design Review)
-- ✅ مقارنة مشروعين (Gap Analysis)
-- ✅ Checklist مطابقة للمطورين
-- ✅ توثيق هيكل الكود
+**MVC Structure Inspector** performs deep Abstract Syntax Tree (AST) traversal of ASP.NET Core MVC projects using the .NET Compiler Platform (Roslyn). It produces comprehensive structural reports and gap analysis across:
 
-**In English:**  
-`mvc-inspect` is a .NET global CLI tool that analyzes ASP.NET Core MVC projects and produces a complete text structure tree covering every code element — useful for design review, gap analysis, developer checklists, and code documentation.
+- **C# source files** — namespaces, classes, interfaces, structs, records, enums, delegates, fields, properties, constructors, methods, nested types, and attribute metadata
+- **Razor views** — `@model`, `@inject`, `@section`, `@RenderBody`, `<partial>`, `asp-for`, `ViewBag`/`ViewData`, form actions, and tag helpers
+- **Static assets** — all files under `wwwroot/` compared via SHA-256 content hashing
+- **Project files** — `.csproj` properties, package references, project references, and `.sln` project registry
+- **Snapshot-based drift detection** — serialize a project baseline, then compare against a live project at any future point
 
 ---
 
-## التثبيت / Installation
+## Installation
 
 ```bash
-dotnet tool install --global mvc-inspect
+dotnet tool install --global MvcStructureInspector
 ```
 
-> متطلبات: .NET 8 SDK أو أحدث
+> **Requirements:** .NET 8.0 SDK or later · Windows / Linux / macOS
 
 ---
 
-## الاستخدام / Usage
+## Commands
 
-### 1. فحص مشروع واحد / Inspect a single project
+### Inspect a Project
 
 ```bash
 mvc-inspect <path>
 ```
 
-**مثال:**
-```bash
-mvc-inspect "C:\source\MyMvcApp"
-```
+Generates a full structural tree report with timestamped filename to prevent overwriting:
 
-يحفظ التقرير تلقائياً داخل المجلد بطابع زمني:
 ```
 [OK] Report saved to:
-     C:\source\MyMvcApp\mvc-structure_20260306_064429.txt
+     C:\source\MyApp\mvc-structure_20260306_064429.txt
+     Snapshot: C:\source\MyApp\mvc-structure_20260306_064429.snapshot.json
 ```
 
----
+A `.snapshot.json` file is automatically saved alongside the text report for future drift detection.
 
-### 2. تحليل الفجوات بين مشروعين / Gap analysis between two projects
+### Gap Analysis Between Two Projects
 
 ```bash
-mvc-inspect --compare <pathA> <pathB>
+mvc-inspect --compare <referenceProject> <targetProject>
 ```
 
-**مثال:**
+Compares project **[A]** (reference) against project **[B]** (target) and produces a detailed gap report with:
+- Executive summary with quantified gap counts
+- Per-file, per-type, and per-member differential analysis
+- Razor view element-level comparison
+- Static asset (wwwroot) content comparison via SHA-256
+- Developer task checklist for alignment
+
+### Drift Detection from Saved Report
+
 ```bash
-mvc-inspect --compare "C:\source\ReferenceApp" "C:\source\DevApp"
+mvc-inspect --from-report <report.txt|.snapshot.json> <projectPath>
 ```
 
-يحفظ تقرير المقارنة داخل `pathB`:
-```
-[OK] Report saved to:
-     C:\source\DevApp\mvc-gap-report_20260306_064430.txt
-```
+Loads a previously saved project snapshot as the baseline **[A]** and compares it against a live project **[B]**. This enables tracking structural drift over time without access to the original source.
 
----
-
-### 4. فتح تقرير موجود / Open an existing report
+### Open an Existing Report
 
 ```bash
 mvc-inspect open <report-file>
 ```
 
-**مثال:**
-```bash
-mvc-inspect open "C:\source\MyApp\mvc-structure_20260306_064429.txt"
-```
-
-يفتح الملف بالمشغّل الافتراضي للنظام (Notepad / VS Code / أي محرر مرتبط بـ `.txt`).
+Opens any report file with the system default viewer.
 
 ---
 
-### 5. الفتح التلقائي بعد الحفظ / Auto-open after save
+## Options
 
-```bash
-mvc-inspect <path> --open
-mvc-inspect --compare <pathA> <pathB> --open
-```
-
-يحفظ التقرير ثم يفتحه فوراً دون الحاجة لنسخ المسار يدوياً.
-
----
-
-| الخيار | الوصف |
-|--------|-------|
-| `--out <file>` | تحديد مسار ملف الإخراج يدوياً |
-| `--open` | فتح التقرير تلقائياً بعد الحفظ |
-| `--with-proj` | تحليل `.csproj` و `.sln` (للمقارنة فقط) |
-| `--no-views` | استثناء ملفات `.cshtml` |
-| `--cs-only` | ملفات C# فقط |
-| `--no-migrations` | استثناء مجلد Migrations |
-
-**أمثلة:**
-```bash
-# حفظ في مسار مخصص
-mvc-inspect "C:\source\MyApp" --out "C:\reports\structure.txt"
-
-# C# فقط بدون Razor وبدون Migrations
-mvc-inspect "C:\source\MyApp" --cs-only --no-migrations
-
-# مقارنة مع حفظ في مسار مخصص
-mvc-inspect --compare "C:\Ref" "C:\Dev" --out "C:\reports\gap.txt"
-```
+| Option | Description |
+|--------|-------------|
+| `--out <file>` | Override the auto-generated output path |
+| `--open` | Open the report automatically after generation |
+| `--with-proj` | Include `.csproj` and `.sln` comparison (compare mode only) |
+| `--no-views` | Exclude `.cshtml` Razor view files |
+| `--cs-only` | Analyze C# source files only |
+| `--no-migrations` | Exclude the `Migrations` directory |
 
 ---
 
-## محتويات التقرير / Report Contents
+## Report Structure
 
-### شجرة المشروع الواحد (`mvc-structure_*.txt`)
+### Single Project Report (`mvc-structure_*.txt`)
 
 ```
 MyMvcApp/
 ├── Controllers/
 │   └── HomeController.cs
-│       └── namespace MyMvcApp.Controllers
-│           └── [class] HomeController : Controller
-│               ├── [field]  - _context : ApplicationDbContext
-│               ├── [ctor]   + HomeController(ApplicationDbContext context)
-│               ├── [method] + Index() : IActionResult
-│               │               [GET /]
-│               ├── [method] + About() : IActionResult
-│               └── [method] + Error() : IActionResult
+│       namespace: MyMvcApp.Controllers
+│           + class HomeController : Controller
+│               - ApplicationDbContext _context
+│               + HomeController(ApplicationDbContext context)  [constructor]
+│               + IActionResult Index()
+│               + IActionResult About()
 ├── Models/
 │   └── User.cs
-│       └── namespace MyMvcApp.Models
-│           └── [class] User
-│               ├── [prop]   + Id : int  { get; set; }
-│               ├── [prop]   + Name : string  { get; set; }
-│               └── [prop]   + Email : string  { get; set; }
+│       namespace: MyMvcApp.Models
+│           + class User
+│               + int Id { get; set; }
+│               + string Name { get; set; }
 └── Views/
     └── Home/
         └── Index.cshtml
-            ├── @model   MyMvcApp.Models.HomeViewModel
-            ├── Layout   _Layout
-            └── asp-for  Name, Email
+            Type: [View]
+            @model MyMvcApp.Models.HomeViewModel
+            Layout = "_Layout"
+            asp-for="Name"
 ```
 
-**العناصر المستخرجة:**
+### Gap Analysis Report (`mvc-gap-report_*.txt`)
 
-| الرمز | النوع |
-|-------|-------|
-| `[class]` | كلاس |
-| `[interface]` | واجهة |
-| `[enum]` | تعداد |
-| `[struct]` | هيكل |
-| `[record]` | سجل |
-| `[delegate]` | مفوّض |
-| `[snippet]` | مقتطف (local function / lambda) |
-| `[field]` | حقل |
-| `[prop]` | خاصية |
-| `[ctor]` | منشئ |
-| `[method]` | دالة |
-| `+` | public |
-| `-` | private |
-| `#` | protected |
-| `~` | internal |
+The report contains six sections:
+
+1. **Executive Summary** — quantified gap counts across all categories
+2. **C# File Gaps** — missing, extra, or structurally modified source files
+3. **Type & Member Differentials** — class, interface, method, and property-level changes
+4. **Static File Gaps** — wwwroot content comparison with file sizes and SHA-256 hashes
+5. **Project File Gaps** — `.csproj` property and package reference differentials, `.sln` project registry comparison
+6. **Developer Task Checklist** — actionable items to align project [B] with reference [A]
 
 ---
 
-### تقرير الفجوات (`mvc-gap-report_*.txt`)
+## Security
 
-يشمل أربعة أقسام:
-
-1. **ملخص تنفيذي** — جدول بعدد الملفات، الكلاسات، الدوال في كل مشروع
-2. **فجوات C#** — ملفات مفقودة أو مختلفة على مستوى الكلاسات والأعضاء
-3. **فجوات Razor** — ملفات `.cshtml` المفقودة أو المختلفة
-4. **قسم [5] — فجوات ملفات المشروع** (مع `--with-proj`):
-
-```
-[5] PROJECT FILE GAPS (.csproj / .sln)
---------------------------------------------------------------------------------
-
-  [MODIFIED] .csproj files with differences:
-
-  File: MyApp.csproj
-  --------------------
-     -- Target Framework(s):
-        [CHANGED] TargetFramework
-           A: net8.0
-           B: net6.0
-     -- Package References:
-        [MISSING] Microsoft.EntityFrameworkCore 8.0.0
-        [EXTRA]   Dapper 2.1.0
-        [CHANGED] Serilog
-           A: 3.1.1
-           B: 2.12.0
-     -- Project References:
-        [MISSING] ../SharedLib/SharedLib.csproj
-
-  .sln file:
-     [A] MySolution.sln
-     [B] MySolution.sln
-
-     [MISSING] Projects registered in [A].sln but absent in [B].sln:
-          - SharedLib  (../SharedLib/SharedLib.csproj)
-```
+- **Protected Extensions** — the tool refuses to overwrite sensitive file types (`.cs`, `.csproj`, `.sln`, `.json`, `.dll`, `.exe`, `.key`, `.pfx`, etc.)
+- **Timestamped Reports** — automatic filenames with `yyyyMMdd_HHmmss` pattern prevent accidental overwrites
+- **CodeQL Scanning** — every release undergoes automated static security analysis
+- **SBOM Generation** — CycloneDX Software Bill of Materials included with each release
 
 ---
 
-## السلوك عند الحفظ / Save Behavior
-
-| الحالة | الملف المولَّد |
-|--------|----------------|
-| `mvc-inspect <path>` (تلقائي) | `mvc-structure_yyyyMMdd_HHmmss.txt` |
-| `mvc-inspect --compare <A> <B>` (تلقائي) | `mvc-gap-report_yyyyMMdd_HHmmss.txt` |
-| مع `--out <file>` | المسار المحدد يدوياً |
-
-> **ملاحظة:** التقارير التلقائية تحمل طابعاً زمنياً دائماً لمنع الكتابة فوق السجلات السابقة وتمكين المقارنة عبر الزمن.
-
----
-
-## الامتدادات المحمية / Protected Extensions
-
-لا تقبل الأداة كتابة الناتج (`--out`) على الملفات الحساسة:
-`.sln` `.csproj` `.cs` `.cshtml` `.json` `.config` `.xml` `.dll` `.exe`
-
----
-
-## المتطلبات / Requirements
-
-- .NET 8.0 SDK or later
-- Windows / Linux / macOS
-
----
-
-## البناء من المصدر / Build from Source
+## Build from Source
 
 ```bash
 git clone https://github.com/sbay-dev/mvc-inspect
-cd mvc-inspect/src
-dotnet build -c Release
-dotnet pack -c Release
-dotnet tool install --global --add-source . mvc-inspect
+cd mvc-inspect
+dotnet build src/MvcStructureInspector.csproj -c Release
+dotnet test tests/MvcStructureInspector.Tests/ -c Release
+dotnet pack src/MvcStructureInspector.csproj -c Release -o nupkg/
 ```
 
 ---
 
-## سجل التغييرات / Changelog
+## Changelog
 
-### v2.4.0 (2026-03-06)
-- 🆕 إضافة `--with-proj`: مقارنة `.csproj` و `.sln` بين مشروعين مع تفصيل كامل للاختلافات
-  - SDK، Target Frameworks، OutputType، Nullable، ImplicitUsings، LangVersion
-  - PackageReferences (الاسم + الإصدار)، ProjectReferences، خصائص أخرى
-  - مشاريع `.sln` (مسجّلة/مفقودة/مختلفة المسار أو TypeGuid)
-  - القسم [5] في تقرير الفجوات مع checklist تلقائي
+### v2.6.1
+- Professional NuGet metadata and product page integration
+- Comprehensive English documentation
 
-### v2.3.0 (2026-03-06)
-- 📂 إضافة `--open`: يفتح التقرير تلقائياً بعد الحفظ عبر المشغّل الافتراضي للنظام
-- 📂 إضافة أمر `open <file>`: فتح أي تقرير موجود مسبقاً بدون إعادة التحليل
+### v2.6.0
+- Snapshot-based drift detection via `--from-report` command
+- Automatic `.snapshot.json` serialization alongside text reports
+- SecurityGuard allowlist for tool-generated snapshot files
 
-### v2.2.1 (2026-03-06)
-- 🔒 التقارير التلقائية تحمل طابعاً زمنياً (`yyyyMMdd_HHmmss`) لمنع الكتابة فوق السجلات السابقة
+### v2.5.0
+- wwwroot static file comparison with SHA-256 content hashing
+- Static file gap reporting (Section [4]) with file sizes and hash differentials
+- CI/CD pipeline: CodeQL, SBOM generation, automated NuGet publishing
+- Professional bilingual product page at sbay-dev.github.io/mvc-inspect
 
-### v2.2.0
-- 💾 حفظ تلقائي دائماً داخل مجلد المشروع (لا يطبع على الشاشة)
-- 🚫 حماية الملفات الحساسة من الكتابة عليها عبر `--out`
+### v2.4.0
+- `.csproj` and `.sln` comparison via `--with-proj` flag
+- Package reference, project reference, and SDK property differentials
+
+### v2.3.0
+- `--open` flag for automatic report viewing
+- `open <file>` subcommand for existing reports
+
+### v2.2.1
+- Timestamped auto-save filenames to prevent report overwriting
 
 ### v2.0.0
-- ✅ دعم `.cshtml` و `.cshtml.cs` كعنصر MVC أساسي
-- ✅ تقرير فجوات Razor مع مقارنة كاملة
-- ✅ استخرج: `@model`, `@inject`, `Layout`, `@section`, `asp-for`, `<partial>`, ViewBag/ViewData
+- Razor view structural analysis (`.cshtml`)
+- `@model`, `@inject`, `@section`, `asp-for`, `<partial>`, ViewBag/ViewData extraction
 
 ### v1.0.0
-- 🎉 الإصدار الأول — فحص C# بـ Roslyn، مقارنة المشاريع، تقرير الفجوات
+- Initial release — Roslyn-based C# structural inspection and gap analysis
 
 ---
 
-## الترخيص / License
+## License
 
 MIT © 2025-2026 [SBAY-SDK](https://github.com/sbay-dev)

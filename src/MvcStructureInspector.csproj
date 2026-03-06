@@ -9,19 +9,20 @@
     <RootNamespace>MvcStructureInspector</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mvc-inspect</ToolCommandName>
-    <Version>2.6.0</Version>
+    <Version>2.6.1</Version>
     <PackageId>MvcStructureInspector</PackageId>
-    <Title>MVC Structure Inspector</Title>
-    <Description>A .NET global CLI tool that generates a full text structure tree for ASP.NET Core MVC projects — namespaces, classes, interfaces, enums, delegates, snippets, methods, properties, fields, and Razor views.</Description>
+    <Title>MVC Structure Inspector — Static Structural Analysis for ASP.NET Core</Title>
+    <Description>A Roslyn-powered .NET global CLI tool for static structural analysis of ASP.NET Core MVC projects. Generates comprehensive Abstract Syntax Tree traversals, gap analysis reports, and developer checklists across C# source files, Razor views, static assets (wwwroot), project files (.csproj/.sln), and snapshot-based drift detection.</Description>
     <Authors>SBAY-SDK</Authors>
     <Company>SBAY-SDK</Company>
     <Copyright>Copyright © 2025-2026 SBAY-SDK</Copyright>
-    <PackageTags>mvc;aspnetcore;roslyn;csharp;dotnet-tool;code-analysis;checklist;gap-analysis</PackageTags>
+    <PackageTags>mvc;aspnetcore;roslyn;static-analysis;code-analysis;gap-analysis;dotnet-tool;csharp;razor;structural-inspection</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/sbay-dev/mvc-inspect</PackageProjectUrl>
+    <PackageProjectUrl>https://sbay-dev.github.io/mvc-inspect/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sbay-dev/mvc-inspect</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageReleaseNotes>v2.6.1: Professional NuGet metadata, product page URL, snapshot-based drift detection (--from-report), wwwroot static file comparison with SHA-256 hashing, 71 unit tests.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
