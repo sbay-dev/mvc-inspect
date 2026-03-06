@@ -91,10 +91,12 @@ jobs:
           path: test-results/
 
       - name: Pack
-        run: >
-          dotnet pack src/MvcStructureInspector.csproj -c Release
-          -o nupkg/
-          /p:PackageVersion=${{ github.ref_name }}
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          dotnet pack src/MvcStructureInspector.csproj -c Release \
+            -o nupkg/ \
+            /p:PackageVersion="$VERSION"
 
       - name: Publish to NuGet.org
         run: >
