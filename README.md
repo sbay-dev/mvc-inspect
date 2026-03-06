@@ -73,11 +73,36 @@ mvc-inspect --compare "C:\source\ReferenceApp" "C:\source\DevApp"
 
 ---
 
-### 3. خيارات إضافية / Options
+### 4. فتح تقرير موجود / Open an existing report
+
+```bash
+mvc-inspect open <report-file>
+```
+
+**مثال:**
+```bash
+mvc-inspect open "C:\source\MyApp\mvc-structure_20260306_064429.txt"
+```
+
+يفتح الملف بالمشغّل الافتراضي للنظام (Notepad / VS Code / أي محرر مرتبط بـ `.txt`).
+
+---
+
+### 5. الفتح التلقائي بعد الحفظ / Auto-open after save
+
+```bash
+mvc-inspect <path> --open
+mvc-inspect --compare <pathA> <pathB> --open
+```
+
+يحفظ التقرير ثم يفتحه فوراً دون الحاجة لنسخ المسار يدوياً.
+
+---
 
 | الخيار | الوصف |
 |--------|-------|
 | `--out <file>` | تحديد مسار ملف الإخراج يدوياً |
+| `--open` | فتح التقرير تلقائياً بعد الحفظ |
 | `--no-views` | استثناء ملفات `.cshtml` |
 | `--cs-only` | ملفات C# فقط |
 | `--no-migrations` | استثناء مجلد Migrations |
@@ -199,6 +224,10 @@ dotnet tool install --global --add-source . mvc-inspect
 ---
 
 ## سجل التغييرات / Changelog
+
+### v2.3.0 (2026-03-06)
+- 📂 إضافة `--open`: يفتح التقرير تلقائياً بعد الحفظ عبر المشغّل الافتراضي للنظام
+- 📂 إضافة أمر `open <file>`: فتح أي تقرير موجود مسبقاً بدون إعادة التحليل
 
 ### v2.2.1 (2026-03-06)
 - 🔒 التقارير التلقائية تحمل طابعاً زمنياً (`yyyyMMdd_HHmmss`) لمنع الكتابة فوق السجلات السابقة
