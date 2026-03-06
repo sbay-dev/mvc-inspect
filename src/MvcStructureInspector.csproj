@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>mvc-inspect</AssemblyName>
+    <RootNamespace>MvcStructureInspector</RootNamespace>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>mvc-inspect</ToolCommandName>
+    <Version>2.3.0</Version>
+    <PackageId>mvc-inspect</PackageId>
+    <Title>MVC Structure Inspector</Title>
+    <Description>A .NET global CLI tool that generates a full text structure tree for ASP.NET Core MVC projects — namespaces, classes, interfaces, enums, delegates, snippets, methods, properties, fields, and Razor views.</Description>
+    <Authors>SBAY-SDK</Authors>
+    <Company>SBAY-SDK</Company>
+    <Copyright>Copyright © 2025-2026 SBAY-SDK</Copyright>
+    <PackageTags>mvc;aspnetcore;roslyn;csharp;dotnet-tool;code-analysis;checklist;gap-analysis</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/sbay-dev/mvc-inspect</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/sbay-dev/mvc-inspect</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.9.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md" Pack="true" PackagePath="\" />
+    <None Include="..\LICENSE" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>
