@@ -9,7 +9,7 @@
     <RootNamespace>MvcStructureInspector</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mvc-inspect</ToolCommandName>
-    <Version>2.5.0</Version>
+    <Version>2.6.0</Version>
     <PackageId>MvcStructureInspector</PackageId>
     <Title>MVC Structure Inspector</Title>
     <Description>A .NET global CLI tool that generates a full text structure tree for ASP.NET Core MVC projects — namespaces, classes, interfaces, enums, delegates, snippets, methods, properties, fields, and Razor views.</Description>

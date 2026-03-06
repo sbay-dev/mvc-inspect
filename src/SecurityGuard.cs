@@ -22,15 +22,23 @@ public static class SecurityGuard
     /// <summary>
     /// Throws <see cref="InvalidOperationException"/> if <paramref name="path"/> has a
     /// protected extension that the tool must not overwrite.
+    /// Snapshot JSON files (*.snapshot.json) produced by this tool are explicitly allowed.
     /// </summary>
     public static void AssertSafeOutputPath(string path)
     {
+        if (IsSnapshotFile(path))
+            return;   // tool's own machine-readable format — always safe
+
         string ext = Path.GetExtension(path);
         if (IsProtectedExtension(ext))
             throw new InvalidOperationException(
                 $"[ERROR] Refusing to overwrite a '{ext}' file: {path}\n" +
                 $"        Use a .txt or .md output file instead.");
     }
+
+    /// <summary>Returns <c>true</c> when the file is a tool-generated snapshot.</summary>
+    public static bool IsSnapshotFile(string path) =>
+        path.EndsWith(".snapshot.json", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Returns <c>true</c> when <paramref name="filename"/> matches the timestamped

@@ -72,6 +72,71 @@ if (cmpIdx >= 0)
     return 0;
 }
 
+// -- Command: --from-report <report> <pathB> ------------------------------------
+int frIdx = Array.IndexOf(args, "--from-report");
+if (frIdx >= 0)
+{
+    if (frIdx + 2 >= args.Length)
+    {
+        Error("Two arguments required: mvc-inspect --from-report <report.txt|.snapshot.json> <projectPath>");
+        return 2;
+    }
+
+    string reportFile   = args[frIdx + 1];
+    string liveProject  = args[frIdx + 2];
+
+    if (!File.Exists(reportFile)) { Error($"Report file not found: {reportFile}"); return 2; }
+    if (!Directory.Exists(liveProject)) { Error($"Project path not found: {liveProject}"); return 2; }
+
+    string snapshotPath;
+    try
+    {
+        snapshotPath = SnapshotSerializer.ResolveSnapshotPath(reportFile);
+    }
+    catch (FileNotFoundException ex)
+    {
+        Error(ex.Message);
+        return 2;
+    }
+
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine($"  Loading snapshot [A]: {snapshotPath}");
+    Console.ResetColor();
+
+    ProjectSnapshot snapA;
+    try
+    {
+        snapA = SnapshotSerializer.Load(snapshotPath);
+    }
+    catch (Exception ex)
+    {
+        Error($"Failed to load snapshot: {ex.Message}");
+        return 2;
+    }
+
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine($"  Analyzing live project [B]: {liveProject}");
+    Console.ResetColor();
+    var parser = new StructureParser(options);
+    var snapB  = parser.Parse(liveProject);
+
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine("  Comparing snapshot [A] vs live project [B]...");
+    Console.ResetColor();
+
+    var engine = new ComparisonEngine();
+    var (diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary) = engine.Compare(snapA, snapB);
+
+    var formatter = new GapReportFormatter();
+    string report = formatter.Format(snapA, snapB, diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary);
+
+    string resolvedOut = outFile ?? Path.Combine(Path.GetFullPath(liveProject),
+        $"mvc-gap-report_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
+
+    WriteOutput(report, resolvedOut, autoOpen);
+    return 0;
+}
+
 // -- Command: open <file> -------------------------------------------------------
 int openIdx = Array.IndexOf(args, "open");
 if (openIdx == 0)
@@ -106,9 +171,20 @@ if (!Directory.Exists(projectPath))
 string autoOut = outFile ?? Path.Combine(Path.GetFullPath(projectPath),
     $"mvc-structure_{DateTime.Now:yyyyMMdd_HHmmss}.txt");
 
+var structParser = new StructureParser(options);
+var snapshot = structParser.Parse(projectPath);
+
 var inspector = new ProjectInspector(options);
 string result = inspector.Inspect(projectPath);
 WriteOutput(result, autoOut, autoOpen);
+
+// Save machine-readable snapshot alongside the text report for future --from-report usage
+string snapshotOut = Path.ChangeExtension(autoOut, null) + ".snapshot.json";
+SnapshotSerializer.Save(snapshot, snapshotOut);
+Console.ForegroundColor = ConsoleColor.DarkGray;
+Console.WriteLine($"     Snapshot: {snapshotOut}");
+Console.ResetColor();
+
 return 0;
 
 // -- Helpers --------------------------------------------------------------------
@@ -159,9 +235,10 @@ static void PrintHelp()
     Console.ResetColor();
     Console.WriteLine();
     Console.WriteLine("Commands:");
-    Console.WriteLine("  mvc-inspect <path>                      Inspect one project  -> saves mvc-structure_<timestamp>.txt inside <path>");
-    Console.WriteLine("  mvc-inspect --compare <pathA> <pathB>   Gap analysis         -> saves mvc-gap-report_<timestamp>.txt inside <pathB>");
-    Console.WriteLine("  mvc-inspect open <report-file>          Open an existing report with the default viewer");
+    Console.WriteLine("  mvc-inspect <path>                                  Inspect one project  -> saves .txt + .snapshot.json");
+    Console.WriteLine("  mvc-inspect --compare <pathA> <pathB>               Gap analysis between two live projects");
+    Console.WriteLine("  mvc-inspect --from-report <report> <projectPath>    Compare a saved report snapshot against a live project");
+    Console.WriteLine("  mvc-inspect open <report-file>                      Open an existing report with the default viewer");
     Console.WriteLine();
     Console.WriteLine("Options:");
     Console.WriteLine("  --out <file>        Override the auto output path");
@@ -171,11 +248,18 @@ static void PrintHelp()
     Console.WriteLine("  --cs-only           C# files only");
     Console.WriteLine("  --no-migrations     Exclude Migrations folder");
     Console.WriteLine();
+    Console.WriteLine("Notes:");
+    Console.WriteLine("  When inspecting a project, a .snapshot.json file is saved alongside the .txt report.");
+    Console.WriteLine("  This snapshot can later be used with --from-report to track structural drift over time.");
+    Console.WriteLine("  You can pass either the .txt or .snapshot.json path to --from-report.");
+    Console.WriteLine();
     Console.WriteLine("Examples:");
     Console.WriteLine("  mvc-inspect C:\\source\\MyApp");
     Console.WriteLine("  mvc-inspect C:\\source\\MyApp --open");
     Console.WriteLine("  mvc-inspect C:\\source\\MyApp --out C:\\reports\\structure.txt --open");
     Console.WriteLine("  mvc-inspect --compare C:\\source\\RefApp C:\\source\\DevApp --open");
     Console.WriteLine("  mvc-inspect --compare C:\\source\\RefApp C:\\source\\DevApp --with-proj --open");
+    Console.WriteLine("  mvc-inspect --from-report C:\\reports\\baseline.txt C:\\source\\DevApp --open");
+    Console.WriteLine("  mvc-inspect --from-report C:\\reports\\baseline.snapshot.json C:\\source\\DevApp");
     Console.WriteLine("  mvc-inspect open C:\\source\\MyApp\\mvc-structure_20260306_064429.txt");
 }
