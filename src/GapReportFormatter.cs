@@ -10,7 +10,9 @@ public class GapReportFormatter
 
     public string Format(
         ProjectSnapshot snapA, ProjectSnapshot snapB,
-        List<FileDiff> diffs, List<RazorFileDiff> razorDiffs, GapSummary summary)
+        List<FileDiff> diffs, List<RazorFileDiff> razorDiffs,
+        List<CsprojDiff> projDiffs, SlnDiff? slnDiff,
+        GapSummary summary)
     {
         var sb = new StringBuilder();
 
@@ -31,7 +33,9 @@ public class GapReportFormatter
                       + summary.TypesOnlyInA + summary.TypesOnlyInB + summary.TypesModified
                       + summary.MembersOnlyInA + summary.MembersOnlyInB + summary.MembersModified
                       + summary.RazorOnlyInA + summary.RazorOnlyInB + summary.RazorModified
-                      + summary.RazorElementsOnlyInA + summary.RazorElementsOnlyInB + summary.RazorElementsModified;
+                      + summary.RazorElementsOnlyInA + summary.RazorElementsOnlyInB + summary.RazorElementsModified
+                      + summary.ProjOnlyInA + summary.ProjOnlyInB + summary.ProjDiffsCount
+                      + summary.SlnProjectsOnlyInA + summary.SlnProjectsOnlyInB + summary.SlnProjectsModified;
 
         sb.AppendLine($"  Total Gaps          : {totalGaps}");
         sb.AppendLine(Line80Thin);
@@ -53,6 +57,17 @@ public class GapReportFormatter
         sb.AppendLine($"  Razor elements missing    : {summary.RazorElementsOnlyInA}   (@model/@section/asp-for...)");
         sb.AppendLine($"  Razor elements extra      : {summary.RazorElementsOnlyInB}");
         sb.AppendLine($"  Razor elements modified   : {summary.RazorElementsModified}");
+        if (summary.ProjOnlyInA + summary.ProjOnlyInB + summary.ProjDiffsCount
+          + summary.SlnProjectsOnlyInA + summary.SlnProjectsOnlyInB + summary.SlnProjectsModified > 0)
+        {
+            sb.AppendLine(Line80Thin);
+            sb.AppendLine($"  .csproj files missing in [B]  : {summary.ProjOnlyInA}");
+            sb.AppendLine($"  .csproj files extra in [B]    : {summary.ProjOnlyInB}");
+            sb.AppendLine($"  .csproj files with diffs      : {summary.ProjDiffsCount}");
+            sb.AppendLine($"  .sln projects missing in [B]  : {summary.SlnProjectsOnlyInA}");
+            sb.AppendLine($"  .sln projects extra in [B]    : {summary.SlnProjectsOnlyInB}");
+            sb.AppendLine($"  .sln projects modified        : {summary.SlnProjectsModified}");
+        }
         sb.AppendLine(Line80);
         sb.AppendLine();
 
@@ -263,6 +278,135 @@ public class GapReportFormatter
             }
         }
 
+        // -- Section 5: .csproj / .sln gaps ----------------------------------
+        var projMissing  = projDiffs.Where(d => d.Status == DiffStatus.Missing).ToList();
+        var projExtra    = projDiffs.Where(d => d.Status == DiffStatus.Extra).ToList();
+        var projModified = projDiffs.Where(d => d.Status == DiffStatus.Modified).ToList();
+        bool hasSlnDiffs = slnDiff?.ProjectDiffs.Any() == true;
+
+        if (projMissing.Any() || projExtra.Any() || projModified.Any() || hasSlnDiffs)
+        {
+            sb.AppendLine("[5] PROJECT FILE GAPS (.csproj / .sln)");
+            sb.AppendLine(Line80Thin);
+            sb.AppendLine();
+
+            // ── .csproj file presence ──────────────────────────────────────
+            if (projMissing.Any())
+            {
+                sb.AppendLine("  [MISSING] .csproj files in [A] not found in [B]:");
+                foreach (var p in projMissing)
+                    sb.AppendLine($"       - {p.RelativePath}");
+                sb.AppendLine();
+            }
+
+            if (projExtra.Any())
+            {
+                sb.AppendLine("  [EXTRA] .csproj files in [B] not in [A]:");
+                foreach (var p in projExtra)
+                    sb.AppendLine($"       + {p.RelativePath}");
+                sb.AppendLine();
+            }
+
+            // ── .csproj property diffs ──────────────────────────────────────
+            if (projModified.Any())
+            {
+                sb.AppendLine("  [MODIFIED] .csproj files with differences:");
+                sb.AppendLine();
+
+                foreach (var pd in projModified)
+                {
+                    sb.AppendLine($"  File: {pd.RelativePath}");
+                    sb.AppendLine($"  {new string('-', Math.Min(pd.RelativePath.Length + 6, 76))}");
+
+                    foreach (var grp in pd.PropertyDiffs.GroupBy(d => d.Category).OrderBy(g => g.Key))
+                    {
+                        string catLabel = grp.Key switch
+                        {
+                            "SDK"             => "SDK",
+                            "TargetFramework" => "Target Framework(s)",
+                            "OutputType"      => "Output Type",
+                            "Nullable"        => "Nullable",
+                            "ImplicitUsings"  => "Implicit Usings",
+                            "LangVersion"     => "Language Version",
+                            "PackageRef"      => "Package References",
+                            "ProjectRef"      => "Project References",
+                            "Property"        => "Other Properties",
+                            _                 => grp.Key
+                        };
+
+                        sb.AppendLine($"     -- {catLabel}:");
+                        foreach (var d in grp)
+                        {
+                            switch (d.Status)
+                            {
+                                case DiffStatus.Missing:
+                                    sb.AppendLine($"        [MISSING] {d.ValueA}");
+                                    break;
+                                case DiffStatus.Extra:
+                                    sb.AppendLine($"        [EXTRA]   {d.ValueB}");
+                                    break;
+                                case DiffStatus.Modified:
+                                    sb.AppendLine($"        [CHANGED] {d.Name}");
+                                    sb.AppendLine($"           A: {d.ValueA}");
+                                    sb.AppendLine($"           B: {d.ValueB}");
+                                    break;
+                            }
+                        }
+                    }
+                    sb.AppendLine();
+                }
+            }
+
+            // ── .sln project list diffs ────────────────────────────────────
+            if (hasSlnDiffs)
+            {
+                sb.AppendLine("  .sln file:");
+                if (slnDiff!.RelPathA != null) sb.AppendLine($"     [A] {slnDiff.RelPathA}");
+                if (slnDiff!.RelPathB != null) sb.AppendLine($"     [B] {slnDiff.RelPathB}");
+                sb.AppendLine();
+
+                var slnMissing  = slnDiff.ProjectDiffs.Where(p => p.Status == DiffStatus.Missing).ToList();
+                var slnExtra    = slnDiff.ProjectDiffs.Where(p => p.Status == DiffStatus.Extra).ToList();
+                var slnModified = slnDiff.ProjectDiffs.Where(p => p.Status == DiffStatus.Modified).ToList();
+
+                if (slnMissing.Any())
+                {
+                    sb.AppendLine("     [MISSING] Projects registered in [A].sln but absent in [B].sln:");
+                    foreach (var p in slnMissing)
+                        sb.AppendLine($"          - {p.Name}  ({p.PathA})");
+                    sb.AppendLine();
+                }
+
+                if (slnExtra.Any())
+                {
+                    sb.AppendLine("     [EXTRA] Projects in [B].sln not registered in [A].sln:");
+                    foreach (var p in slnExtra)
+                        sb.AppendLine($"          + {p.Name}  ({p.PathB})");
+                    sb.AppendLine();
+                }
+
+                if (slnModified.Any())
+                {
+                    sb.AppendLine("     [CHANGED] Projects with differing path or type GUID:");
+                    foreach (var p in slnModified)
+                    {
+                        sb.AppendLine($"          ~ {p.Name}");
+                        if (p.PathA != null)
+                        {
+                            sb.AppendLine($"              Path  A: {p.PathA}");
+                            sb.AppendLine($"              Path  B: {p.PathB}");
+                        }
+                        if (p.TypeA != null)
+                        {
+                            sb.AppendLine($"              Type  A: {p.TypeA}");
+                            sb.AppendLine($"              Type  B: {p.TypeB}");
+                        }
+                    }
+                    sb.AppendLine();
+                }
+            }
+        }
+
         // -- Section 4: Developer task checklist ------------------------------
         sb.AppendLine("[4] DEVELOPER TASK CHECKLIST");
         sb.AppendLine(Line80Thin);
@@ -306,6 +450,25 @@ public class GapReportFormatter
                 sb.AppendLine($"  [ ] {taskNum++:D2}. Add {el.Category,-13}  : {el.ValueA}  ->  {r.RelativePath}");
             foreach (var el in r.Elements.Where(e => e.Status == DiffStatus.Modified))
                 sb.AppendLine($"  [ ] {taskNum++:D2}. Fix {el.Category,-13}  : {r.RelativePath}  [A: {el.ValueA}  ->  B: {el.ValueB}]");
+        }
+
+        foreach (var p in projDiffs.Where(d => d.Status == DiffStatus.Missing))
+            sb.AppendLine($"  [ ] {taskNum++:D2}. Create .csproj      : {p.RelativePath}");
+
+        foreach (var p in projModified)
+        {
+            foreach (var d in p.PropertyDiffs.Where(d => d.Status == DiffStatus.Missing))
+                sb.AppendLine($"  [ ] {taskNum++:D2}. Add {d.Category,-13}  : {d.ValueA}  ->  {p.RelativePath}");
+            foreach (var d in p.PropertyDiffs.Where(d => d.Status == DiffStatus.Modified))
+                sb.AppendLine($"  [ ] {taskNum++:D2}. Fix {d.Category,-13}  : {d.Name}  in  {p.RelativePath}");
+        }
+
+        if (slnDiff != null)
+        {
+            foreach (var p in slnDiff.ProjectDiffs.Where(d => d.Status == DiffStatus.Missing))
+                sb.AppendLine($"  [ ] {taskNum++:D2}. Register in .sln    : {p.Name}  ({p.PathA})");
+            foreach (var p in slnDiff.ProjectDiffs.Where(d => d.Status == DiffStatus.Modified))
+                sb.AppendLine($"  [ ] {taskNum++:D2}. Fix .sln entry      : {p.Name}");
         }
 
         sb.AppendLine();

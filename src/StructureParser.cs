@@ -19,7 +19,15 @@ public class StructureParser
         var files      = new List<ParsedFile>();
         var razorFiles = new List<ParsedRazorFile>();
         CollectFiles(rootPath, rootPath, files, razorFiles);
-        return new ProjectSnapshot(name, rootPath, files, razorFiles);
+
+        var csprojFiles = _options.IncludeProjectFiles
+            ? ProjectFileParser.ParseCsprojFiles(rootPath)
+            : [];
+        var slnFile = _options.IncludeProjectFiles
+            ? ProjectFileParser.ParseSln(rootPath)
+            : null;
+
+        return new ProjectSnapshot(name, rootPath, files, razorFiles, csprojFiles, slnFile);
     }
 
     private void CollectFiles(string dir, string root,

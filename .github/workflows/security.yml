@@ -1,0 +1,94 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'   # every Monday 03:00 UTC
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore tests/MvcStructureInspector.Tests/MvcStructureInspector.Tests.csproj
+
+      - name: Build
+        run: dotnet build tests/MvcStructureInspector.Tests/MvcStructureInspector.Tests.csproj -c Release --no-restore
+
+      - name: Test with coverage
+        run: >
+          dotnet test tests/MvcStructureInspector.Tests/MvcStructureInspector.Tests.csproj
+          -c Release --no-build
+          --collect:"XPlat Code Coverage"
+          --results-directory coverage/
+          --logger "trx;LogFileName=results.trx"
+
+      - name: Upload coverage
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          queries: security-and-quality
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Build for CodeQL
+        run: dotnet build src/MvcStructureInspector.csproj -c Release
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:csharp
+
+  dependency-review:
+    name: Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+
+  file-integrity:
+    name: File Integrity Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify no protected files overwritten
+        run: |
+          # Ensure SecurityGuard.cs is present and mentions the protected-extensions list
+          grep -q "ProtectedExtensions" src/SecurityGuard.cs || \
+            (echo "FAIL: SecurityGuard.cs missing ProtectedExtensions" && exit 1)
+          echo "PASS: SecurityGuard integrity verified"

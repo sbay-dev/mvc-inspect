@@ -6,7 +6,9 @@ public record ProjectSnapshot(
     string ProjectName,
     string RootPath,
     List<ParsedFile> Files,
-    List<ParsedRazorFile> RazorFiles);
+    List<ParsedRazorFile> RazorFiles,
+    List<ParsedCsprojFile> CsprojFiles,
+    ParsedSlnFile? SlnFile);
 
 // ─── C# file ────────────────────────────────────────────────────────────────
 
@@ -119,4 +121,34 @@ public record RazorFormAction(
     string? Area);
 
 public record RazorTagHelper(string TagName, string? AspFor, string? AspAction, string? AspController);
+
+// ─── .csproj file ────────────────────────────────────────────────────────────
+
+public record ParsedCsprojFile(
+    string RelativePath,
+    string Sdk,
+    List<string> TargetFrameworks,
+    string? OutputType,
+    string? Nullable,
+    string? ImplicitUsings,
+    string? LangVersion,
+    List<PackageRef> PackageReferences,
+    List<string> ProjectReferences,
+    Dictionary<string, string> OtherProperties)
+{
+    public string MatchKey => RelativePath.Replace('\\', '/').ToLowerInvariant();
+}
+
+public record PackageRef(string Name, string Version);
+
+// ─── .sln file ───────────────────────────────────────────────────────────────
+
+public record ParsedSlnFile(
+    string RelativePath,
+    List<SlnProject> Projects);
+
+public record SlnProject(string TypeGuid, string Name, string Path)
+{
+    public string MatchKey => Name.ToLowerInvariant();
+}
 

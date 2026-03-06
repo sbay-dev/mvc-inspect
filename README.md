@@ -103,6 +103,7 @@ mvc-inspect --compare <pathA> <pathB> --open
 |--------|-------|
 | `--out <file>` | تحديد مسار ملف الإخراج يدوياً |
 | `--open` | فتح التقرير تلقائياً بعد الحفظ |
+| `--with-proj` | تحليل `.csproj` و `.sln` (للمقارنة فقط) |
 | `--no-views` | استثناء ملفات `.cshtml` |
 | `--cs-only` | ملفات C# فقط |
 | `--no-migrations` | استثناء مجلد Migrations |
@@ -181,7 +182,36 @@ MyMvcApp/
 1. **ملخص تنفيذي** — جدول بعدد الملفات، الكلاسات، الدوال في كل مشروع
 2. **فجوات C#** — ملفات مفقودة أو مختلفة على مستوى الكلاسات والأعضاء
 3. **فجوات Razor** — ملفات `.cshtml` المفقودة أو المختلفة
-4. **قائمة مهام المطور** — Checklist جاهزة للتنفيذ
+4. **قسم [5] — فجوات ملفات المشروع** (مع `--with-proj`):
+
+```
+[5] PROJECT FILE GAPS (.csproj / .sln)
+--------------------------------------------------------------------------------
+
+  [MODIFIED] .csproj files with differences:
+
+  File: MyApp.csproj
+  --------------------
+     -- Target Framework(s):
+        [CHANGED] TargetFramework
+           A: net8.0
+           B: net6.0
+     -- Package References:
+        [MISSING] Microsoft.EntityFrameworkCore 8.0.0
+        [EXTRA]   Dapper 2.1.0
+        [CHANGED] Serilog
+           A: 3.1.1
+           B: 2.12.0
+     -- Project References:
+        [MISSING] ../SharedLib/SharedLib.csproj
+
+  .sln file:
+     [A] MySolution.sln
+     [B] MySolution.sln
+
+     [MISSING] Projects registered in [A].sln but absent in [B].sln:
+          - SharedLib  (../SharedLib/SharedLib.csproj)
+```
 
 ---
 
@@ -224,6 +254,13 @@ dotnet tool install --global --add-source . mvc-inspect
 ---
 
 ## سجل التغييرات / Changelog
+
+### v2.4.0 (2026-03-06)
+- 🆕 إضافة `--with-proj`: مقارنة `.csproj` و `.sln` بين مشروعين مع تفصيل كامل للاختلافات
+  - SDK، Target Frameworks، OutputType، Nullable، ImplicitUsings، LangVersion
+  - PackageReferences (الاسم + الإصدار)، ProjectReferences، خصائص أخرى
+  - مشاريع `.sln` (مسجّلة/مفقودة/مختلفة المسار أو TypeGuid)
+  - القسم [5] في تقرير الفجوات مع checklist تلقائي
 
 ### v2.3.0 (2026-03-06)
 - 📂 إضافة `--open`: يفتح التقرير تلقائياً بعد الحفظ عبر المشغّل الافتراضي للنظام

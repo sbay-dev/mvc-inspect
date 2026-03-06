@@ -13,9 +13,10 @@ if (args.Length == 0)
 // -- Parse shared options -------------------------------------------------------
 var options = new InspectorOptions
 {
-    IncludeViews      = !args.Contains("--no-views"),
-    CsOnly            = args.Contains("--cs-only"),
-    IncludeMigrations = !args.Contains("--no-migrations"),
+    IncludeViews         = !args.Contains("--no-views"),
+    CsOnly               = args.Contains("--cs-only"),
+    IncludeMigrations    = !args.Contains("--no-migrations"),
+    IncludeProjectFiles  = args.Contains("--with-proj"),
 };
 
 bool autoOpen = args.Contains("--open");
@@ -62,10 +63,10 @@ if (cmpIdx >= 0)
     Console.ResetColor();
 
     var engine = new ComparisonEngine();
-    var (diffs, razorDiffs, summary) = engine.Compare(snapA, snapB);
+    var (diffs, razorDiffs, projDiffs, slnDiff, summary) = engine.Compare(snapA, snapB);
 
     var formatter = new GapReportFormatter();
-    string report = formatter.Format(snapA, snapB, diffs, razorDiffs, summary);
+    string report = formatter.Format(snapA, snapB, diffs, razorDiffs, projDiffs, slnDiff, summary);
 
     WriteOutput(report, resolvedOut, autoOpen);
     return 0;
@@ -114,6 +115,7 @@ return 0;
 
 static void WriteOutput(string text, string outFile, bool openAfter)
 {
+    SecurityGuard.AssertSafeOutputPath(outFile);   // refuse protected extensions
     File.WriteAllText(outFile, text, Encoding.UTF8);
     Console.ForegroundColor = ConsoleColor.Green;
     Console.WriteLine($"[OK] Report saved to:");
@@ -164,6 +166,7 @@ static void PrintHelp()
     Console.WriteLine("Options:");
     Console.WriteLine("  --out <file>        Override the auto output path");
     Console.WriteLine("  --open              Open the report automatically after saving");
+    Console.WriteLine("  --with-proj         Include .csproj and .sln comparison (compare only)");
     Console.WriteLine("  --no-views          Exclude .cshtml files");
     Console.WriteLine("  --cs-only           C# files only");
     Console.WriteLine("  --no-migrations     Exclude Migrations folder");
@@ -173,5 +176,6 @@ static void PrintHelp()
     Console.WriteLine("  mvc-inspect C:\\source\\MyApp --open");
     Console.WriteLine("  mvc-inspect C:\\source\\MyApp --out C:\\reports\\structure.txt --open");
     Console.WriteLine("  mvc-inspect --compare C:\\source\\RefApp C:\\source\\DevApp --open");
+    Console.WriteLine("  mvc-inspect --compare C:\\source\\RefApp C:\\source\\DevApp --with-proj --open");
     Console.WriteLine("  mvc-inspect open C:\\source\\MyApp\\mvc-structure_20260306_064429.txt");
 }

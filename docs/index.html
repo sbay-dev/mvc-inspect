@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>mvc-inspect — أداة فحص مشاريع ASP.NET Core MVC</title>
+  <link rel="stylesheet" href="assets/style.css" />
+  <meta name="description" content="mvc-inspect: أداة سطر أوامر .NET عالمية لتحليل وفحص مشاريع ASP.NET Core MVC بعمق" />
+</head>
+<body>
+
+  <!-- ===== HERO ===== -->
+  <header class="hero">
+    <div class="hero-inner">
+      <div class="badge-row">
+        <a href="https://www.nuget.org/packages/MvcStructureInspector" target="_blank">
+          <img src="https://img.shields.io/nuget/v/MvcStructureInspector?color=00897b&label=NuGet&style=flat-square" alt="NuGet" />
+        </a>
+        <a href="https://www.nuget.org/packages/MvcStructureInspector" target="_blank">
+          <img src="https://img.shields.io/nuget/dt/MvcStructureInspector?color=1565c0&label=Downloads&style=flat-square" alt="Downloads" />
+        </a>
+        <a href="https://github.com/sbay-dev/mvc-inspect/actions" target="_blank">
+          <img src="https://img.shields.io/github/actions/workflow/status/sbay-dev/mvc-inspect/security.yml?branch=main&label=Security+Scan&style=flat-square" alt="Security" />
+        </a>
+        <a href="https://github.com/sbay-dev/mvc-inspect/blob/main/LICENSE" target="_blank">
+          <img src="https://img.shields.io/github/license/sbay-dev/mvc-inspect?style=flat-square" alt="MIT License" />
+        </a>
+      </div>
+
+      <h1>🔍 mvc-inspect</h1>
+      <p class="tagline">أداة سطر أوامر قوية لتحليل وفحص مشاريع ASP.NET Core MVC</p>
+
+      <div class="install-box">
+        <code>dotnet tool install --global MvcStructureInspector</code>
+        <button class="copy-btn" onclick="copyInstall()">نسخ</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== FEATURES ===== -->
+  <section class="section features" id="features">
+    <h2>المميزات</h2>
+    <div class="cards">
+      <div class="card">
+        <span class="icon">🌳</span>
+        <h3>مخطط الهيكل</h3>
+        <p>مخطط شجري تفصيلي لكل كلاس وحقن ومتحكم مع عدد الأعضاء النصي</p>
+      </div>
+      <div class="card">
+        <span class="icon">⚖️</span>
+        <h3>مقارنة المشاريع</h3>
+        <p>تحديد الفجوات بين مشروعين: ملفات ناقصة، تواقيع مختلفة، مناظير Razor</p>
+      </div>
+      <div class="card">
+        <span class="icon">📦</span>
+        <h3>تحليل .csproj / .sln</h3>
+        <p>مقارنة حزم NuGet والـ frameworks وإعدادات المشروع عبر الـ solution</p>
+      </div>
+      <div class="card">
+        <span class="icon">🔒</span>
+        <h3>حماية التقارير</h3>
+        <p>كل تقرير بتوقيت فريد — لا كتابة فوق، سجل تاريخي كامل</p>
+      </div>
+      <div class="card">
+        <span class="icon">📂</span>
+        <h3>فتح تلقائي</h3>
+        <p>خيار <code>--open</code> يفتح التقرير مباشرةً بعد الإنشاء</p>
+      </div>
+      <div class="card">
+        <span class="icon">🛡️</span>
+        <h3>آمن ومدقق</h3>
+        <p>CodeQL + CycloneDX SBOM + اختبارات وحدة في كل نشر</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== USAGE ===== -->
+  <section class="section usage" id="usage">
+    <h2>الاستخدام</h2>
+    <div class="lang-tabs">
+      <button class="tab active" onclick="showLang('ar')">العربية</button>
+      <button class="tab" onclick="showLang('en')">English</button>
+    </div>
+
+    <!-- Arabic usage -->
+    <div class="lang-content" id="lang-ar">
+      <div class="cmd-block">
+        <p class="cmd-label">توليد مخطط الهيكل:</p>
+        <pre><code>mvc-inspect --path ./MyProject --out report.txt</code></pre>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">مقارنة مشروعين:</p>
+        <pre><code>mvc-inspect --compare ./ProjectA --path ./ProjectB --out gap.txt</code></pre>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">مقارنة مع تحليل .csproj / .sln:</p>
+        <pre><code>mvc-inspect --compare ./ProjectA --path ./ProjectB --with-proj</code></pre>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">فتح التقرير تلقائياً:</p>
+        <pre><code>mvc-inspect --path ./MyProject --open</code></pre>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">فتح تقرير موجود:</p>
+        <pre><code>mvc-inspect open ./mvc-structure_20241205_143000.txt</code></pre>
+      </div>
+    </div>
+
+    <!-- English usage -->
+    <div class="lang-content hidden" id="lang-en">
+      <div class="cmd-block">
+        <p class="cmd-label">Generate structure map:</p>
+        <pre><code>mvc-inspect --path ./MyProject --out report.txt</code></pre>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">Compare two projects:</p>
+        <pre><code>mvc-inspect --compare ./ProjectA --path ./ProjectB --out gap.txt</code></pre>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">Compare with .csproj / .sln analysis:</p>
+        <pre><code>mvc-inspect --compare ./ProjectA --path ./ProjectB --with-proj</code></pre>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">Auto-open report after generation:</p>
+        <pre><code>mvc-inspect --path ./MyProject --open</code></pre>
+      </div>
+      <div class="cmd-block">
+        <p class="cmd-label">Open an existing report:</p>
+        <pre><code>mvc-inspect open ./mvc-structure_20241205_143000.txt</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FLAGS TABLE ===== -->
+  <section class="section flags" id="flags">
+    <h2>الخيارات (Flags)</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>الخيار</th><th>الوصف</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>--path &lt;dir&gt;</code></td><td>مسار المشروع المراد فحصه</td></tr>
+          <tr><td><code>--out &lt;file&gt;</code></td><td>ملف الإخراج (اختياري، افتراضي: توقيت تلقائي)</td></tr>
+          <tr><td><code>--compare &lt;dir&gt;</code></td><td>المشروع الأول في المقارنة</td></tr>
+          <tr><td><code>--with-proj</code></td><td>تضمين مقارنة .csproj و .sln</td></tr>
+          <tr><td><code>--open</code></td><td>فتح التقرير تلقائياً بعد الإنشاء</td></tr>
+          <tr><td><code>--no-views</code></td><td>استبعاد مناظير Razor</td></tr>
+          <tr><td><code>--cs-only</code></td><td>ملفات C# فقط</td></tr>
+          <tr><td><code>--no-migrations</code></td><td>استبعاد ملفات Migrations</td></tr>
+          <tr><td><code>open &lt;file&gt;</code></td><td>فتح ملف تقرير محدد</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ===== SECURITY ===== -->
+  <section class="section security" id="security">
+    <h2>الأمان والنزاهة</h2>
+    <ul class="security-list">
+      <li>✅ CodeQL يُشغّل تلقائياً على كل push وكل أسبوع</li>
+      <li>✅ SBOM (CycloneDX) مرفق مع كل إصدار على NuGet</li>
+      <li>✅ فحص التبعيات (Dependency Review) على كل Pull Request</li>
+      <li>✅ 57 اختبار وحدة يُشغّل في كل CI قبل النشر</li>
+      <li>✅ لا كتابة فوق الملفات — كل تقرير بتوقيت فريد محمي بـ SecurityGuard</li>
+      <li>✅ الامتدادات المحمية (.exe, .dll, .wasm, .cs, ...) محظور الكتابة إليها</li>
+    </ul>
+    <p>تقارير الأمان متاحة في تبويب <a href="https://github.com/sbay-dev/mvc-inspect/releases" target="_blank">Releases</a> بالمستودع.</p>
+  </section>
+
+  <!-- ===== CHANGELOG ===== -->
+  <section class="section changelog" id="changelog">
+    <h2>سجل التغييرات</h2>
+    <dl class="changelog-list">
+      <dt>v2.5.0</dt>
+      <dd>إضافة SecurityGuard، مجموعة اختبارات كاملة (57 اختبار)، وبنية CI/CD على GitHub Actions</dd>
+      <dt>v2.4.0</dt>
+      <dd>دعم مقارنة .csproj و .sln عبر <code>--with-proj</code></dd>
+      <dt>v2.3.0</dt>
+      <dd>إضافة <code>--open</code> وأمر <code>open &lt;file&gt;</code></dd>
+      <dt>v2.2.1</dt>
+      <dd>توليد أسماء تقارير بتوقيت فريد — منع الكتابة فوق السجلات السابقة</dd>
+      <dt>v2.0.0</dt>
+      <dd>دعم مقارنة المشاريع وتقارير GAP التفصيلية</dd>
+      <dt>v1.0.0</dt>
+      <dd>الإصدار الأولي: مخطط الهيكل النصي</dd>
+    </dl>
+  </section>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <p>
+      صُنعت بـ ❤️ في <a href="https://github.com/sbay-dev" target="_blank">sbay-dev</a> ·
+      <a href="https://github.com/sbay-dev/mvc-inspect" target="_blank">GitHub</a> ·
+      <a href="https://www.nuget.org/packages/MvcStructureInspector" target="_blank">NuGet</a> ·
+      MIT License
+    </p>
+  </footer>
+
+  <script>
+    function copyInstall() {
+      navigator.clipboard.writeText('dotnet tool install --global MvcStructureInspector');
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = '✓ تم النسخ';
+      setTimeout(() => btn.textContent = 'نسخ', 2000);
+    }
+
+    function showLang(lang) {
+      document.querySelectorAll('.lang-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+      document.getElementById('lang-' + lang).classList.remove('hidden');
+      event.target.classList.add('active');
+    }
+  </script>
+</body>
+</html>

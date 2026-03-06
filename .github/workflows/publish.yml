@@ -1,0 +1,121 @@
+name: Publish to NuGet
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+  security-events: write
+  id-token: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet test tests/MvcStructureInspector.Tests/ -c Release --logger "trx;LogFileName=results.trx" --results-directory test-results/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: csharp
+          queries: security-and-quality
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: dotnet build src/MvcStructureInspector.csproj -c Release
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:csharp
+          output: codeql-results/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: codeql-report
+          path: codeql-results/
+
+  sbom:
+    name: Generate SBOM
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install CycloneDX
+        run: dotnet tool install --global CycloneDX
+      - name: Generate SBOM
+        run: dotnet CycloneDX src/MvcStructureInspector.csproj -o sbom/ -f json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom/
+
+  pack-and-publish:
+    name: Pack & Publish
+    runs-on: ubuntu-latest
+    needs: [test, codeql, sbom]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Download SBOM
+        uses: actions/download-artifact@v4
+        with:
+          name: sbom
+          path: sbom/
+
+      - name: Download test results
+        uses: actions/download-artifact@v4
+        with:
+          name: test-results
+          path: test-results/
+
+      - name: Pack
+        run: >
+          dotnet pack src/MvcStructureInspector.csproj -c Release
+          -o nupkg/
+          /p:PackageVersion=${{ github.ref_name }}
+
+      - name: Publish to NuGet.org
+        run: >
+          dotnet nuget push nupkg/*.nupkg
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: mvc-inspect ${{ github.ref_name }}
+          body: |
+            ## mvc-inspect ${{ github.ref_name }}
+
+            Full changelog and security reports attached below.
+
+            **Security Reports:** See attached SBOM and CodeQL artifacts.
+            **Test Results:** All unit tests passed.
+          files: |
+            nupkg/*.nupkg
+            sbom/*.json
+            test-results/*.trx

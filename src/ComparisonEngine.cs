@@ -43,13 +43,47 @@ public record GapSummary(
     int TypesOnlyInA, int TypesOnlyInB, int TypesModified,
     int MembersOnlyInA, int MembersOnlyInB, int MembersModified,
     int RazorOnlyInA, int RazorOnlyInB, int RazorModified,
-    int RazorElementsOnlyInA, int RazorElementsOnlyInB, int RazorElementsModified);
+    int RazorElementsOnlyInA, int RazorElementsOnlyInB, int RazorElementsModified,
+    int ProjOnlyInA, int ProjOnlyInB, int ProjDiffsCount,
+    int SlnProjectsOnlyInA, int SlnProjectsOnlyInB, int SlnProjectsModified);
+
+// ── .csproj diff types ───────────────────────────────────────────────────────
+
+public record CsprojDiff(
+    string RelativePath,
+    DiffStatus Status,
+    List<ProjPropertyDiff> PropertyDiffs);
+
+/// <summary>A single property/package/reference difference inside a .csproj.</summary>
+public record ProjPropertyDiff(
+    string Category,    // SDK | TargetFramework | OutputType | Nullable | ImplicitUsings | LangVersion | PackageRef | ProjectRef | Property
+    string Name,        // property name or package name
+    DiffStatus Status,
+    string? ValueA,
+    string? ValueB);
+
+// ── .sln diff types ──────────────────────────────────────────────────────────
+
+public record SlnDiff(
+    string? RelPathA,
+    string? RelPathB,
+    List<SlnProjectDiff> ProjectDiffs);
+
+public record SlnProjectDiff(
+    string Name,
+    DiffStatus Status,
+    string? PathA,
+    string? PathB,
+    string? TypeA,
+    string? TypeB);
 
 // ── Comparison engine ────────────────────────────────────────────────────────
 
 public class ComparisonEngine
 {
-    public (List<FileDiff> Diffs, List<RazorFileDiff> RazorDiffs, GapSummary Summary) Compare(
+    public (List<FileDiff> Diffs, List<RazorFileDiff> RazorDiffs,
+            List<CsprojDiff> ProjDiffs, SlnDiff? SlnDiff,
+            GapSummary Summary) Compare(
         ProjectSnapshot snapA, ProjectSnapshot snapB)
     {
         var diffs = new List<FileDiff>();
@@ -104,14 +138,29 @@ public class ComparisonEngine
             ref rzOnlyA, ref rzOnlyB, ref rzMod,
             ref rzElOnlyA, ref rzElOnlyB, ref rzElMod);
 
+        // ── .csproj comparison ───────────────────────────────────────────────
+        var projDiffs = new List<CsprojDiff>();
+        int prOnlyA = 0, prOnlyB = 0, prMod = 0;
+        CompareCsprojFiles(snapA.CsprojFiles, snapB.CsprojFiles,
+            projDiffs, ref prOnlyA, ref prOnlyB, ref prMod);
+
+        // ── .sln comparison ──────────────────────────────────────────────────
+        int slnOnlyA = 0, slnOnlyB = 0, slnMod = 0;
+        SlnDiff? slnDiff = CompareSlnFiles(snapA.SlnFile, snapB.SlnFile,
+            ref slnOnlyA, ref slnOnlyB, ref slnMod);
+
         var summary = new GapSummary(onlyA, onlyB, matched,
             typesOnlyA, typesOnlyB, typesMod,
             memOnlyA, memOnlyB, memMod,
             rzOnlyA, rzOnlyB, rzMod,
-            rzElOnlyA, rzElOnlyB, rzElMod);
+            rzElOnlyA, rzElOnlyB, rzElMod,
+            prOnlyA, prOnlyB, prMod,
+            slnOnlyA, slnOnlyB, slnMod);
 
         return (diffs.Where(d => d.Status != DiffStatus.Identical).ToList(),
                 razorDiffs.Where(d => d.Status != DiffStatus.Identical).ToList(),
+                projDiffs,
+                slnDiff,
                 summary);
     }
 
@@ -287,6 +336,158 @@ public class ComparisonEngine
 
     private static string Norm(string path) =>
         path.Replace('\\', '/').ToLowerInvariant();
+
+    // ── .csproj comparison ────────────────────────────────────────────────────
+
+    private static void CompareCsprojFiles(
+        List<ParsedCsprojFile> listA, List<ParsedCsprojFile> listB,
+        List<CsprojDiff> result,
+        ref int onlyA, ref int onlyB, ref int modified)
+    {
+        var dictA = listA.ToDictionary(f => f.MatchKey);
+        var dictB = listB.ToDictionary(f => f.MatchKey);
+
+        foreach (var key in dictA.Keys.Union(dictB.Keys).OrderBy(k => k))
+        {
+            bool inA = dictA.TryGetValue(key, out var fa);
+            bool inB = dictB.TryGetValue(key, out var fb);
+
+            if (inA && !inB) { onlyA++; result.Add(new CsprojDiff(fa!.RelativePath, DiffStatus.Missing, [])); continue; }
+            if (!inA && inB) { onlyB++; result.Add(new CsprojDiff(fb!.RelativePath, DiffStatus.Extra,   [])); continue; }
+
+            var propDiffs = DiffCsproj(fa!, fb!);
+            bool hasDiff  = propDiffs.Any(p => p.Status != DiffStatus.Identical);
+            if (hasDiff) modified++;
+
+            result.Add(new CsprojDiff(fa!.RelativePath,
+                hasDiff ? DiffStatus.Modified : DiffStatus.Identical,
+                propDiffs.Where(p => p.Status != DiffStatus.Identical).ToList()));
+        }
+    }
+
+    private static List<ProjPropertyDiff> DiffCsproj(ParsedCsprojFile a, ParsedCsprojFile b)
+    {
+        var result = new List<ProjPropertyDiff>();
+        int dummy = 0;
+
+        // SDK
+        ScalarProp("SDK", "Sdk", a.Sdk, b.Sdk, result, ref dummy);
+
+        // Target frameworks (treat as set)
+        ProjStringSet("TargetFramework", "TargetFramework", a.TargetFrameworks, b.TargetFrameworks, result, ref dummy, ref dummy);
+
+        // Simple scalar properties
+        ScalarProp("OutputType",     "OutputType",     a.OutputType,     b.OutputType,     result, ref dummy);
+        ScalarProp("Nullable",       "Nullable",       a.Nullable,       b.Nullable,       result, ref dummy);
+        ScalarProp("ImplicitUsings", "ImplicitUsings", a.ImplicitUsings, b.ImplicitUsings, result, ref dummy);
+        ScalarProp("LangVersion",    "LangVersion",    a.LangVersion,    b.LangVersion,    result, ref dummy);
+
+        // PackageReferences — keyed by package name, diff on version
+        var pkgA = a.PackageReferences.ToDictionary(p => p.Name.ToLowerInvariant(), p => p.Version);
+        var pkgB = b.PackageReferences.ToDictionary(p => p.Name.ToLowerInvariant(), p => p.Version);
+        var origNameA = a.PackageReferences.ToDictionary(p => p.Name.ToLowerInvariant(), p => p.Name);
+        var origNameB = b.PackageReferences.ToDictionary(p => p.Name.ToLowerInvariant(), p => p.Name);
+
+        foreach (var k in pkgA.Keys.Union(pkgB.Keys).OrderBy(k => k))
+        {
+            bool ia = pkgA.TryGetValue(k, out var va);
+            bool ib = pkgB.TryGetValue(k, out var vb);
+            string displayName = ia ? origNameA[k] : origNameB[k];
+
+            if (ia && !ib)
+                result.Add(new ProjPropertyDiff("PackageRef", displayName, DiffStatus.Missing, $"{displayName} {va}", null));
+            else if (!ia && ib)
+                result.Add(new ProjPropertyDiff("PackageRef", displayName, DiffStatus.Extra, null, $"{displayName} {vb}"));
+            else if (va != vb)
+                result.Add(new ProjPropertyDiff("PackageRef", displayName, DiffStatus.Modified, $"{displayName} {va}", $"{displayName} {vb}"));
+            else
+                result.Add(new ProjPropertyDiff("PackageRef", displayName, DiffStatus.Identical, null, null));
+        }
+
+        // ProjectReferences (set)
+        ProjStringSet("ProjectRef", "ProjectReference", a.ProjectReferences, b.ProjectReferences, result, ref dummy, ref dummy);
+
+        // OtherProperties
+        var otherKeys = a.OtherProperties.Keys
+            .Union(b.OtherProperties.Keys, StringComparer.OrdinalIgnoreCase)
+            .OrderBy(k => k);
+        foreach (var k in otherKeys)
+        {
+            a.OtherProperties.TryGetValue(k, out var ov);
+            b.OtherProperties.TryGetValue(k, out var nv);
+            ScalarProp("Property", k, ov, nv, result, ref dummy);
+        }
+
+        return result;
+    }
+
+    private static void ScalarProp(string category, string name,
+        string? a, string? b, List<ProjPropertyDiff> result, ref int mod)
+    {
+        if (a == b || (string.IsNullOrEmpty(a) && string.IsNullOrEmpty(b))) return;
+        if (!string.IsNullOrEmpty(a) && string.IsNullOrEmpty(b))
+            result.Add(new ProjPropertyDiff(category, name, DiffStatus.Missing, a, null));
+        else if (string.IsNullOrEmpty(a) && !string.IsNullOrEmpty(b))
+            result.Add(new ProjPropertyDiff(category, name, DiffStatus.Extra, null, b));
+        else
+        { mod++; result.Add(new ProjPropertyDiff(category, name, DiffStatus.Modified, a, b)); }
+    }
+
+    private static void ProjStringSet(string category, string name,
+        List<string> listA, List<string> listB,
+        List<ProjPropertyDiff> result, ref int onlyA, ref int onlyB)
+    {
+        var setA = new HashSet<string>(listA, StringComparer.OrdinalIgnoreCase);
+        var setB = new HashSet<string>(listB, StringComparer.OrdinalIgnoreCase);
+        foreach (var v in setA.Except(setB, StringComparer.OrdinalIgnoreCase).OrderBy(x => x))
+        { onlyA++; result.Add(new ProjPropertyDiff(category, name, DiffStatus.Missing, v, null)); }
+        foreach (var v in setB.Except(setA, StringComparer.OrdinalIgnoreCase).OrderBy(x => x))
+        { onlyB++; result.Add(new ProjPropertyDiff(category, name, DiffStatus.Extra, null, v)); }
+    }
+
+    // ── .sln comparison ───────────────────────────────────────────────────────
+
+    private static SlnDiff? CompareSlnFiles(
+        ParsedSlnFile? a, ParsedSlnFile? b,
+        ref int onlyA, ref int onlyB, ref int modified)
+    {
+        if (a == null && b == null) return null;
+
+        var projDiffs = new List<SlnProjectDiff>();
+        var dictA = (a?.Projects ?? []).ToDictionary(p => p.MatchKey);
+        var dictB = (b?.Projects ?? []).ToDictionary(p => p.MatchKey);
+
+        foreach (var key in dictA.Keys.Union(dictB.Keys).OrderBy(k => k))
+        {
+            bool inA = dictA.TryGetValue(key, out var pa);
+            bool inB = dictB.TryGetValue(key, out var pb);
+
+            if (inA && !inB)
+            {
+                onlyA++;
+                projDiffs.Add(new SlnProjectDiff(pa!.Name, DiffStatus.Missing, pa.Path, null, pa.TypeGuid, null));
+            }
+            else if (!inA && inB)
+            {
+                onlyB++;
+                projDiffs.Add(new SlnProjectDiff(pb!.Name, DiffStatus.Extra, null, pb.Path, null, pb.TypeGuid));
+            }
+            else
+            {
+                bool pathDiff = !pa!.Path.Equals(pb!.Path, StringComparison.OrdinalIgnoreCase);
+                bool typeDiff = !pa.TypeGuid.Equals(pb.TypeGuid, StringComparison.OrdinalIgnoreCase);
+                if (pathDiff || typeDiff)
+                {
+                    modified++;
+                    projDiffs.Add(new SlnProjectDiff(pa.Name, DiffStatus.Modified,
+                        pathDiff ? pa.Path : null, pathDiff ? pb.Path : null,
+                        typeDiff ? pa.TypeGuid : null, typeDiff ? pb.TypeGuid : null));
+                }
+            }
+        }
+
+        return new SlnDiff(a?.RelativePath, b?.RelativePath, projDiffs);
+    }
 
     // ── Razor file comparison ─────────────────────────────────────────────────
 
