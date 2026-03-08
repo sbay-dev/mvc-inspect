@@ -1,5 +1,6 @@
 using MvcStructureInspector;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 
 Console.OutputEncoding = Encoding.UTF8;
@@ -8,6 +9,42 @@ if (args.Length == 0)
 {
     PrintHelp();
     return 1;
+}
+
+// -- Command: --version / -v (highest priority, fast exit) ----------------------
+if (args.Any(a => a is "--version" or "-v"))
+{
+    PrintVersion();
+    return 0;
+}
+
+// -- Command: verify (self-check, no access keys needed) ------------------------
+if (args[0] is "verify" or "--verify")
+{
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine("  Running self-verification checks...");
+    Console.ResetColor();
+
+    var results = SelfVerifier.RunAll();
+    string report = SelfVerifier.FormatReport(results);
+    Console.WriteLine();
+    Console.WriteLine(report);
+
+    int failed = results.Count(r => !r.Passed);
+    if (failed > 0)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.Error.WriteLine($"  {failed} check(s) failed. Review the report above.");
+        Console.ResetColor();
+    }
+    else
+    {
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine("  All checks passed. The tool is operating correctly.");
+        Console.ResetColor();
+    }
+
+    return failed > 0 ? 1 : 0;
 }
 
 // -- Parse shared options -------------------------------------------------------
@@ -369,19 +406,18 @@ static void Error(string msg)
 
 static void PrintHelp()
 {
-    Console.ForegroundColor = ConsoleColor.Yellow;
-    Console.WriteLine("MVC Structure Inspector - ASP.NET Core MVC project analysis tool");
-    Console.WriteLine("==================================================================");
-    Console.ResetColor();
+    PrintVersion();
     Console.WriteLine();
     Console.WriteLine("Commands:");
     Console.WriteLine("  mvc-inspect <path>                                  Inspect one project  -> saves .txt + .snapshot.json");
     Console.WriteLine("  mvc-inspect --compare <pathA> <pathB>               Gap analysis between two live projects");
     Console.WriteLine("  mvc-inspect --from-report <report> <projectPath>    Compare a saved report snapshot against a live project");
     Console.WriteLine("  mvc-inspect gitignore <path>                        Generate .gitignore with smart project detection");
+    Console.WriteLine("  mvc-inspect verify                                  Run self-verification (integrity, security, compatibility)");
     Console.WriteLine("  mvc-inspect open <report-file>                      Open an existing report with the default viewer");
     Console.WriteLine();
     Console.WriteLine("Options:");
+    Console.WriteLine("  -v, --version       Show version and build information");
     Console.WriteLine("  --out <file>        Override the auto output path");
     Console.WriteLine("  --open              Open the report automatically after saving");
     Console.WriteLine("  --with-proj         Include .csproj and .sln comparison (compare only)");
@@ -400,6 +436,7 @@ static void PrintHelp()
     Console.WriteLine("  The gitignore command detects all project ecosystems (including nested/hybrid projects)");
     Console.WriteLine("  and NEVER overwrites an existing .gitignore — it creates a .gitignore.generated_* file instead.");
     Console.WriteLine("  Use --merge to safely append missing patterns to an existing .gitignore.");
+    Console.WriteLine("  Use 'verify' to run security and compatibility checks without any access keys.");
     Console.WriteLine();
     Console.WriteLine("Examples:");
     Console.WriteLine("  mvc-inspect C:\\source\\MyApp");
@@ -413,5 +450,21 @@ static void PrintHelp()
     Console.WriteLine("  mvc-inspect gitignore C:\\source\\MyApp --preview");
     Console.WriteLine("  mvc-inspect gitignore C:\\source\\MyApp --merge");
     Console.WriteLine("  mvc-inspect gitignore C:\\source\\MyApp --add \"*.log\" \"secrets/\" --merge");
+    Console.WriteLine("  mvc-inspect verify");
+    Console.WriteLine("  mvc-inspect -v");
     Console.WriteLine("  mvc-inspect open C:\\source\\MyApp\\mvc-structure_20260306_064429.txt");
+}
+
+static void PrintVersion()
+{
+    var (ver, product, copyright, framework) = SelfVerifier.GetVersionInfo();
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine($"{product} v{ver}");
+    Console.ResetColor();
+    Console.WriteLine($"  Runtime  : {framework}");
+    Console.WriteLine($"  OS       : {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+    Console.WriteLine($"  {copyright}");
+    Console.WriteLine($"  License  : MIT");
+    Console.WriteLine($"  NuGet    : https://www.nuget.org/packages/MvcStructureInspector");
+    Console.WriteLine($"  Product  : https://sbay-dev.github.io/mvc-inspect/");
 }

@@ -5,7 +5,7 @@
 [![NuGet](https://img.shields.io/nuget/v/MvcStructureInspector?logo=nuget&label=NuGet)](https://www.nuget.org/packages/MvcStructureInspector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple?logo=dotnet)](https://dotnet.microsoft.com)
-[![Tests](https://img.shields.io/badge/Tests-93%20passed-brightgreen)](https://github.com/sbay-dev/mvc-inspect/actions)
+[![Tests](https://img.shields.io/badge/Tests-103%20passed-brightgreen)](https://github.com/sbay-dev/mvc-inspect/actions)
 [![Product Page](https://img.shields.io/badge/Product%20Page-sbay--dev.github.io-blue)](https://sbay-dev.github.io/mvc-inspect/)
 
 ---
@@ -110,12 +110,36 @@ Scans the project directory for all ecosystems and generates a comprehensive `.g
      C:\source\MyApp\.gitignore
 ```
 
+### Self-Verification
+
+```bash
+mvc-inspect verify
+```
+
+Runs 21 automated checks across five categories — no access keys or credentials required:
+
+- **Assembly Integrity** — version metadata, SHA-256 hash, Roslyn dependency
+- **Security Guard** — protected extensions, output path guards, timestamped reports, gitignore validation
+- **Runtime Compatibility** — .NET version, UTF-8 encoding, SHA-256 crypto, file system access
+- **Dependency Integrity** — all referenced assemblies resolvable, Roslyn version compatible
+- **File System Safety** — system directory detection, temp access, path traversal guard
+
+### Version Information
+
+```bash
+mvc-inspect -v
+mvc-inspect --version
+```
+
+Displays version, runtime, OS, and product links.
+
 ---
 
 ## Options
 
 | Option | Description |
 |--------|-------------|
+| `-v`, `--version` | Show version and build information |
 | `--out <file>` | Override the auto-generated output path |
 | `--open` | Open the report automatically after generation |
 | `--with-proj` | Include `.csproj` and `.sln` comparison (compare mode only) |
@@ -198,6 +222,16 @@ dotnet pack src/MvcStructureInspector.csproj -c Release -o nupkg/
 ---
 
 ## Changelog
+
+### v2.8.0
+- Version display via `-v` / `--version` with runtime, OS, and product metadata
+- Self-verification command (`verify`) with 21 automated checks across 5 categories
+- Assembly SHA-256 integrity hash for reproducibility verification
+- Roslyn dependency validation and runtime compatibility checks
+- SecurityGuard invariant verification (protected extensions, path guards, timestamps)
+- File system safety checks (system directory detection, path traversal)
+- No access keys or credentials required — fully local verification
+- 103 unit tests (10 new for self-verifier)
 
 ### v2.7.0
 - Intelligent `.gitignore` generator with multi-ecosystem detection
