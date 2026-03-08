@@ -2,31 +2,32 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>14</LangVersion>
     <AssemblyName>mvc-inspect</AssemblyName>
     <RootNamespace>MvcStructureInspector</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mvc-inspect</ToolCommandName>
-    <Version>2.8.0</Version>
+    <Version>3.0.0</Version>
     <PackageId>MvcStructureInspector</PackageId>
     <Title>MVC Structure Inspector — Static Structural Analysis for ASP.NET Core</Title>
-    <Description>A Roslyn-powered .NET global CLI tool for static structural analysis of ASP.NET Core MVC projects. Generates comprehensive Abstract Syntax Tree traversals, gap analysis reports, and developer checklists across C# source files, Razor views, static assets (wwwroot), project files (.csproj/.sln), snapshot-based drift detection, and intelligent .gitignore generation with multi-ecosystem detection.</Description>
+    <Description>A Roslyn 5.0-powered .NET 10 global CLI tool for static structural analysis of ASP.NET Core MVC projects. Performs deep AST traversal with C# 14 support — including delegate signatures, lambda/closure analysis, captured variable detection, and expression body inspection. Generates comprehensive structural reports, gap analysis, snapshot-based drift detection, intelligent .gitignore generation, and OS kernel diagnostics via lambda probes.</Description>
     <Authors>SBAY-SDK</Authors>
     <Company>SBAY-SDK</Company>
     <Copyright>Copyright © 2025-2026 SBAY-SDK</Copyright>
-    <PackageTags>mvc;aspnetcore;roslyn;static-analysis;code-analysis;gap-analysis;dotnet-tool;csharp;razor;structural-inspection;gitignore</PackageTags>
+    <PackageTags>mvc;aspnetcore;roslyn;static-analysis;code-analysis;gap-analysis;dotnet-tool;csharp;csharp14;razor;structural-inspection;gitignore;lambda;delegate;closure;net10;ast</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://sbay-dev.github.io/mvc-inspect/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sbay-dev/mvc-inspect</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>v2.8.0: Version info (--version/-v), self-verification command (verify) with 21 security/integrity/compatibility checks, assembly SHA-256 hash, Roslyn dependency validation. 103 unit tests.</PackageReleaseNotes>
+    <PackageReleaseNotes>v3.0.0: Upgraded to .NET 10 / C# 14 / Roslyn 5.0.0. Delegate signature detection and lambda/closure analysis with captured variable identification. OS kernel lambda probes (11 diagnostics). Self-verifier expanded to 32 checks across 6 categories. 103 unit tests.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.9.2" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.0.0" />
   </ItemGroup>
 
   <ItemGroup>

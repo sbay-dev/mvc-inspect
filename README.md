@@ -4,7 +4,7 @@
 
 [![NuGet](https://img.shields.io/nuget/v/MvcStructureInspector?logo=nuget&label=NuGet)](https://www.nuget.org/packages/MvcStructureInspector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![.NET](https://img.shields.io/badge/.NET-8.0-purple?logo=dotnet)](https://dotnet.microsoft.com)
+[![.NET](https://img.shields.io/badge/.NET-10.0-purple?logo=dotnet)](https://dotnet.microsoft.com)
 [![Tests](https://img.shields.io/badge/Tests-103%20passed-brightgreen)](https://github.com/sbay-dev/mvc-inspect/actions)
 [![Product Page](https://img.shields.io/badge/Product%20Page-sbay--dev.github.io-blue)](https://sbay-dev.github.io/mvc-inspect/)
 
@@ -14,7 +14,7 @@
 
 **MVC Structure Inspector** performs deep Abstract Syntax Tree (AST) traversal of ASP.NET Core MVC projects using the .NET Compiler Platform (Roslyn). It produces comprehensive structural reports and gap analysis across:
 
-- **C# source files** — namespaces, classes, interfaces, structs, records, enums, delegates, fields, properties, constructors, methods, nested types, and attribute metadata
+- **C# source files** — namespaces, classes, interfaces, structs, records, enums, delegates, fields, properties, constructors, methods, nested types, attribute metadata, lambda expressions, closures, and captured variable analysis
 - **Razor views** — `@model`, `@inject`, `@section`, `@RenderBody`, `<partial>`, `asp-for`, `ViewBag`/`ViewData`, form actions, and tag helpers
 - **Static assets** — all files under `wwwroot/` compared via SHA-256 content hashing
 - **Project files** — `.csproj` properties, package references, project references, and `.sln` project registry
@@ -29,7 +29,7 @@
 dotnet tool install --global MvcStructureInspector
 ```
 
-> **Requirements:** .NET 8.0 SDK or later · Windows / Linux / macOS
+> **Requirements:** .NET 10.0 SDK or later · Windows / Linux / macOS
 
 ---
 
@@ -116,13 +116,14 @@ Scans the project directory for all ecosystems and generates a comprehensive `.g
 mvc-inspect verify
 ```
 
-Runs 21 automated checks across five categories — no access keys or credentials required:
+Runs 32 automated checks across six categories — no access keys or credentials required:
 
 - **Assembly Integrity** — version metadata, SHA-256 hash, Roslyn dependency
 - **Security Guard** — protected extensions, output path guards, timestamped reports, gitignore validation
 - **Runtime Compatibility** — .NET version, UTF-8 encoding, SHA-256 crypto, file system access
 - **Dependency Integrity** — all referenced assemblies resolvable, Roslyn version compatible
 - **File System Safety** — system directory detection, temp access, path traversal guard
+- **OS Kernel Diagnostics** — 11 lambda-based probes (kernel version, process info, CPU count, architecture, uptime, GC memory, timezone, culture)
 
 ### Version Information
 
@@ -222,6 +223,15 @@ dotnet pack src/MvcStructureInspector.csproj -c Release -o nupkg/
 ---
 
 ## Changelog
+
+### v3.0.0
+- **Upgraded to .NET 10 / C# 14 / Roslyn 5.0.0**
+- Delegate signature detection across all namespaces (`ParsedDelegate` record)
+- Lambda and closure analysis: expression bodies, captured variables, owner resolution (`ParsedLambdaProperty` record)
+- 11 OS kernel lambda probes: kernel version, process info, CPU count, 64-bit flags, machine name, user, uptime, working set, GC memory, timezone, culture
+- Self-verifier expanded to 32 checks across 6 categories (added OS Kernel Diagnostics)
+- `GetKernelVersion()` with OS-specific branches (Windows NT, Linux `/proc/version`, macOS Darwin)
+- 103 unit tests
 
 ### v2.8.0
 - Version display via `-v` / `--version` with runtime, OS, and product metadata

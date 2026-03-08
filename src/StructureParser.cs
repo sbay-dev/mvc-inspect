@@ -49,8 +49,8 @@ public class StructureParser
             if (ext == ".cs" && !isStaticDir)
             {
                 string relative = Path.GetRelativePath(root, file);
-                var namespaces = ParseCsFile(file);
-                result.Add(new ParsedFile(relative, ext, namespaces));
+                var (namespaces, lambdas) = ParseCsFileWithLambdas(file);
+                result.Add(new ParsedFile(relative, ext, namespaces, lambdas));
                 continue;
             }
 
@@ -96,25 +96,36 @@ public class StructureParser
 
     private static List<ParsedNamespace> ParseCsFile(string path)
     {
+        var (namespaces, _) = ParseCsFileWithLambdas(path);
+        return namespaces;
+    }
+
+    private static (List<ParsedNamespace> Namespaces, List<ParsedLambdaProperty> Lambdas) ParseCsFileWithLambdas(string path)
+    {
         string code;
         try { code = File.ReadAllText(path); }
-        catch { return []; }
+        catch { return ([], []); }
 
-        var root = CSharpSyntaxTree.ParseText(code).GetRoot();
-        var result = new List<ParsedNamespace>();
+        var root = CSharpSyntaxTree.ParseText(code,
+            new CSharpParseOptions(LanguageVersion.CSharp14)).GetRoot();
+        var namespaces = new List<ParsedNamespace>();
 
         var nsList = root.DescendantNodes().OfType<BaseNamespaceDeclarationSyntax>().ToList();
         if (!nsList.Any())
         {
             var types = ParseTypes(root);
-            if (types.Any()) result.Add(new ParsedNamespace("<global>", types));
+            var delegates = ParseDelegates(root);
+            if (types.Any() || delegates.Any())
+                namespaces.Add(new ParsedNamespace("<global>", types, delegates));
         }
         else
         {
             foreach (var ns in nsList)
-                result.Add(new ParsedNamespace(ns.Name.ToString(), ParseTypes(ns)));
+                namespaces.Add(new ParsedNamespace(ns.Name.ToString(), ParseTypes(ns), ParseDelegates(ns)));
         }
-        return result;
+
+        var lambdas = ParseLambdas(root);
+        return (namespaces, lambdas);
     }
 
     private static List<ParsedType> ParseTypes(SyntaxNode parent)
@@ -203,6 +214,163 @@ public class StructureParser
             FormatParams(m.ParameterList), Attrs(m.AttributeLists));
 
     // == Helpers =============================================================
+
+    private static List<ParsedDelegate> ParseDelegates(SyntaxNode parent) =>
+        parent.ChildNodes().OfType<DelegateDeclarationSyntax>()
+            .Select(d => new ParsedDelegate(
+                Accessibility(d.Modifiers),
+                ExtraModifiers(d.Modifiers),
+                d.ReturnType.ToString(),
+                d.Identifier.Text,
+                d.TypeParameterList?.ToString() ?? "",
+                FormatParams(d.ParameterList),
+                Attrs(d.AttributeLists)))
+            .ToList();
+
+    private static List<ParsedLambdaProperty> ParseLambdas(SyntaxNode root)
+    {
+        var results = new List<ParsedLambdaProperty>();
+
+        foreach (var lambda in root.DescendantNodes().OfType<LambdaExpressionSyntax>())
+        {
+            var containingType = lambda.Ancestors().OfType<TypeDeclarationSyntax>().FirstOrDefault();
+            string typeName = containingType?.Identifier.Text ?? "<top-level>";
+
+            var (memberName, memberKind) = ResolveLambdaOwner(lambda);
+
+            string lambdaKind = lambda switch
+            {
+                SimpleLambdaExpressionSyntax    => "SimpleLambda",
+                ParenthesizedLambdaExpressionSyntax => "ParenthesizedLambda",
+                _ => "Lambda"
+            };
+
+            string parameters = lambda switch
+            {
+                SimpleLambdaExpressionSyntax s => s.Parameter.ToString(),
+                ParenthesizedLambdaExpressionSyntax p => p.ParameterList.ToString(),
+                _ => ""
+            };
+
+            bool isAsync  = lambda.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword);
+            bool isStatic = lambda.Modifiers.Any(SyntaxKind.StaticKeyword);
+
+            int bodyLines = lambda.Body switch
+            {
+                BlockSyntax block => block.Statements.Count,
+                _ => 0
+            };
+
+            // Infer return type from lambda syntax (C# 14 explicit return types)
+            string? inferredReturn = lambda switch
+            {
+                ParenthesizedLambdaExpressionSyntax { ReturnType: not null } p => p.ReturnType.ToString(),
+                _ => null
+            };
+
+            var captured = ExtractCapturedIdentifiers(lambda);
+
+            results.Add(new ParsedLambdaProperty(
+                typeName, memberName, memberKind, lambdaKind,
+                parameters, inferredReturn, isAsync, isStatic,
+                bodyLines, captured));
+        }
+
+        // Also capture anonymous method expressions
+        foreach (var anon in root.DescendantNodes().OfType<AnonymousMethodExpressionSyntax>())
+        {
+            var containingType = anon.Ancestors().OfType<TypeDeclarationSyntax>().FirstOrDefault();
+            string typeName = containingType?.Identifier.Text ?? "<top-level>";
+            var (memberName, memberKind) = ResolveLambdaOwner(anon);
+
+            bool isAsync = anon.AsyncKeyword.IsKind(SyntaxKind.AsyncKeyword);
+            string parameters = anon.ParameterList?.ToString() ?? "";
+
+            int bodyLines = anon.Block.Statements.Count;
+            var captured = ExtractCapturedIdentifiers(anon);
+
+            results.Add(new ParsedLambdaProperty(
+                typeName, memberName, memberKind, "AnonymousMethod",
+                parameters, null, isAsync, false, bodyLines, captured));
+        }
+
+        return results;
+    }
+
+    private static (string Name, string Kind) ResolveLambdaOwner(SyntaxNode lambda)
+    {
+        // Walk ancestors to find the containing member
+        foreach (var ancestor in lambda.Ancestors())
+        {
+            switch (ancestor)
+            {
+                case PropertyDeclarationSyntax prop:
+                    return (prop.Identifier.Text, "property");
+                case FieldDeclarationSyntax field:
+                    var varName = field.Declaration.Variables.FirstOrDefault()?.Identifier.Text ?? "?";
+                    return (varName, "field");
+                case MethodDeclarationSyntax method:
+                    return (method.Identifier.Text, "method");
+                case ConstructorDeclarationSyntax ctor:
+                    return (ctor.Identifier.Text, "constructor");
+                case LocalDeclarationStatementSyntax local:
+                    var localVar = local.Declaration.Variables.FirstOrDefault()?.Identifier.Text ?? "?";
+                    return (localVar, "local");
+                case VariableDeclaratorSyntax varDecl:
+                    return (varDecl.Identifier.Text, "variable");
+                case ArgumentSyntax:
+                    return ("<argument>", "argument");
+                case LambdaExpressionSyntax:
+                    // Nested lambda — skip to outer owner
+                    continue;
+            }
+        }
+        return ("<unknown>", "unknown");
+    }
+
+    private static List<string> ExtractCapturedIdentifiers(SyntaxNode lambda)
+    {
+        // Find identifiers referenced inside the lambda that are declared outside it
+        var innerIdentifiers = lambda.DescendantNodes()
+            .OfType<IdentifierNameSyntax>()
+            .Select(id => id.Identifier.Text)
+            .Distinct()
+            .ToList();
+
+        // Identifiers declared inside the lambda body
+        var declaredInside = new HashSet<string>();
+        foreach (var decl in lambda.DescendantNodes().OfType<VariableDeclaratorSyntax>())
+            declaredInside.Add(decl.Identifier.Text);
+        foreach (var param in lambda.DescendantNodes().OfType<ParameterSyntax>())
+            declaredInside.Add(param.Identifier.Text);
+
+        // Lambda's own parameters
+        switch (lambda)
+        {
+            case SimpleLambdaExpressionSyntax simple:
+                declaredInside.Add(simple.Parameter.Identifier.Text);
+                break;
+            case ParenthesizedLambdaExpressionSyntax paren:
+                foreach (var p in paren.ParameterList.Parameters)
+                    declaredInside.Add(p.Identifier.Text);
+                break;
+        }
+
+        // Exclude common keywords/types/well-known identifiers
+        var excluded = new HashSet<string>(StringComparer.Ordinal)
+        {
+            "var", "string", "int", "bool", "double", "float", "long", "decimal",
+            "object", "void", "null", "true", "false", "this", "base", "value",
+            "nameof", "typeof", "default", "throw", "new", "async", "await",
+            "Console", "Math", "String", "Task", "List", "Dictionary"
+        };
+
+        return innerIdentifiers
+            .Where(id => !declaredInside.Contains(id) && !excluded.Contains(id))
+            .OrderBy(id => id)
+            .Take(20) // cap to avoid noise
+            .ToList();
+    }
 
     private static string Accessibility(SyntaxTokenList m)
     {

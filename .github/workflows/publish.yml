@@ -18,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
       - run: dotnet test tests/MvcStructureInspector.Tests/ -c Release --logger "trx;LogFileName=results.trx" --results-directory test-results/
       - uses: actions/upload-artifact@v4
         if: always()
@@ -38,7 +38,7 @@ jobs:
           queries: security-and-quality
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
       - run: dotnet build src/MvcStructureInspector.csproj -c Release
       - uses: github/codeql-action/analyze@v3
         with:
@@ -58,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
       - name: Install CycloneDX
         run: dotnet tool install --global CycloneDX
       - name: Generate SBOM
@@ -76,7 +76,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
 
       - name: Download SBOM
         uses: actions/download-artifact@v4

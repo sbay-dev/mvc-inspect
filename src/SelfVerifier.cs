@@ -22,6 +22,7 @@ public static class SelfVerifier
         results.AddRange(CheckRuntimeCompatibility());
         results.AddRange(CheckDependencyIntegrity());
         results.AddRange(CheckFileSystemSafety());
+        results.AddRange(CheckOsKernelInfo());
         return results;
     }
 
@@ -52,6 +53,7 @@ public static class SelfVerifier
         sb.AppendLine($"  Runtime     : {framework}");
         sb.AppendLine($"  OS          : {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
         sb.AppendLine($"  Architecture: {System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}");
+        sb.AppendLine($"  Kernel      : {GetKernelVersion()}");
         sb.AppendLine($"  {copyright}");
         sb.AppendLine();
 
@@ -409,6 +411,84 @@ public static class SelfVerifier
         }
 
         return results;
+    }
+
+    // ── OS Kernel Information (lambda-based) ─────────────────────────────────
+
+    /// <summary>
+    /// Lambda-based OS kernel probes that retrieve real kernel-level data
+    /// without requiring elevated privileges or access keys.
+    /// </summary>
+    private static readonly Func<string>[] KernelProbes =
+    [
+        () => $"Kernel: {GetKernelVersion()}",
+        () => $"Process: {Environment.ProcessPath ?? "N/A"} (PID {Environment.ProcessId})",
+        () => $"Processors: {Environment.ProcessorCount} logical cores",
+        () => $"64-bit OS: {Environment.Is64BitOperatingSystem}, 64-bit Process: {Environment.Is64BitProcess}",
+        () => $"Machine: {Environment.MachineName}",
+        () => $"User: {Environment.UserName}@{Environment.UserDomainName}",
+        () => $"Uptime: {TimeSpan.FromMilliseconds(Environment.TickCount64):d\\.hh\\:mm\\:ss}",
+        () => $"Working Set: {Environment.WorkingSet / (1024 * 1024)} MB",
+        () => $"GC Memory: {GC.GetTotalMemory(false) / (1024 * 1024)} MB (Gen0={GC.CollectionCount(0)}, Gen1={GC.CollectionCount(1)}, Gen2={GC.CollectionCount(2)})",
+        () => $"Timezone: {TimeZoneInfo.Local.DisplayName} (UTC{TimeZoneInfo.Local.BaseUtcOffset:hh\\:mm})",
+        () => $"Culture: {System.Globalization.CultureInfo.CurrentCulture.Name} ({System.Globalization.CultureInfo.CurrentCulture.EnglishName})",
+    ];
+
+    private static List<VerifyResult> CheckOsKernelInfo()
+    {
+        var results = new List<VerifyResult>();
+        var cat = "OS Kernel & Environment";
+
+        foreach (var probe in KernelProbes)
+        {
+            try
+            {
+                var info = probe();
+                var parts = info.Split(':', 2);
+                results.Add(new(cat, parts[0].Trim(), true, parts.Length > 1 ? parts[1].Trim() : info));
+            }
+            catch (Exception ex)
+            {
+                results.Add(new(cat, "Kernel probe", false, ex.Message));
+            }
+        }
+
+        return results;
+    }
+
+    private static string GetKernelVersion()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            // Retrieve actual Windows NT kernel version
+            Func<string> winKernel = () =>
+            {
+                var ver = Environment.OSVersion;
+                return $"Windows NT {ver.Version} ({ver.ServicePack}{(string.IsNullOrEmpty(ver.ServicePack) ? "" : " ")}{ver.VersionString})";
+            };
+            return winKernel();
+        }
+
+        if (OperatingSystem.IsLinux())
+        {
+            Func<string> linuxKernel = () =>
+            {
+                try { return File.ReadAllText("/proc/version").Trim(); }
+                catch { return System.Runtime.InteropServices.RuntimeInformation.OSDescription; }
+            };
+            return linuxKernel();
+        }
+
+        if (OperatingSystem.IsMacOS())
+        {
+            Func<string> macKernel = () =>
+            {
+                return $"Darwin {Environment.OSVersion.Version} ({System.Runtime.InteropServices.RuntimeInformation.OSDescription})";
+            };
+            return macKernel();
+        }
+
+        return System.Runtime.InteropServices.RuntimeInformation.OSDescription;
     }
 
     private static string ComputeSHA256(string filePath)

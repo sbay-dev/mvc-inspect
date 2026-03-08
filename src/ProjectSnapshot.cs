@@ -23,11 +23,13 @@ public record StaticFileEntry(
 public record ParsedFile(
     string RelativePath,      // e.g. Controllers\HomeController.cs
     string Extension,
-    List<ParsedNamespace> Namespaces);
+    List<ParsedNamespace> Namespaces,
+    List<ParsedLambdaProperty> Lambdas);
 
 public record ParsedNamespace(
     string Name,
-    List<ParsedType> Types);
+    List<ParsedType> Types,
+    List<ParsedDelegate> Delegates);
 
 public record ParsedType(
     string Kind,              // class | interface | struct | record | enum
@@ -79,6 +81,38 @@ public record ParsedMethod(
 }
 
 public record ParsedEnumValue(string Name, string? Value);
+
+// ─── Delegate declarations ──────────────────────────────────────────────────
+
+public record ParsedDelegate(
+    string Accessibility,
+    string Modifiers,
+    string ReturnType,
+    string Name,
+    string TypeParams,
+    string Parameters,
+    List<string> Attributes)
+{
+    public string Signature => $"{Modifiers}{ReturnType} {Name}{TypeParams}({Parameters})".Trim();
+    public string MatchKey  => $"delegate::{Name}{TypeParams}({Parameters})";
+}
+
+// ─── Lambda / anonymous function expressions ────────────────────────────────
+
+public record ParsedLambdaProperty(
+    string ContainingType,
+    string MemberName,           // field, property, or variable name
+    string MemberKind,           // field | property | local | parameter | argument
+    string LambdaKind,           // SimpleLambda | ParenthesizedLambda | AnonymousMethod
+    string Parameters,           // e.g. "(x, y)" or "x"
+    string? InferredReturnType,  // when resolvable from syntax
+    bool IsAsync,
+    bool IsStatic,
+    int  BodyLineCount,          // block body line count (0 = expression body)
+    List<string> CapturedIdentifiers)  // identifiers referenced from enclosing scope
+{
+    public string Signature => $"{LambdaKind} {Parameters} => ...{(IsAsync ? " [async]" : "")}{(IsStatic ? " [static]" : "")}";
+}
 
 // ─── Razor (.cshtml) file ────────────────────────────────────────────────────
 
