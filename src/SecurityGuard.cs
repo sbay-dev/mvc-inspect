@@ -41,6 +41,36 @@ public static class SecurityGuard
         path.EndsWith(".snapshot.json", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
+    /// Validates that a gitignore output path is safe to write.
+    /// Only allows writing .gitignore or .gitignore.generated_* files
+    /// within the target project directory.
+    /// </summary>
+    public static void AssertSafeGitignoreWrite(string outputPath, string projectRoot)
+    {
+        var fullOutput  = Path.GetFullPath(outputPath);
+        var fullRoot    = Path.GetFullPath(projectRoot);
+        var fileName    = Path.GetFileName(fullOutput);
+
+        // Must be inside the project directory
+        if (!fullOutput.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException(
+                $"[ERROR] Refusing to write outside project directory.\n" +
+                $"        Output: {fullOutput}\n" +
+                $"        Project: {fullRoot}");
+
+        // Only .gitignore or .gitignore.generated_* filenames are allowed
+        if (!IsGitignoreFile(fileName))
+            throw new InvalidOperationException(
+                $"[ERROR] Invalid gitignore output filename: {fileName}\n" +
+                $"        Only .gitignore or .gitignore.generated_* are allowed.");
+    }
+
+    /// <summary>Returns <c>true</c> when the filename is a valid gitignore output name.</summary>
+    public static bool IsGitignoreFile(string fileName) =>
+        fileName.Equals(".gitignore", StringComparison.OrdinalIgnoreCase)
+        || fileName.StartsWith(".gitignore.generated_", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
     /// Returns <c>true</c> when <paramref name="filename"/> matches the timestamped
     /// auto-save pattern produced by the tool (prevents silent overwrites).
     /// </summary>

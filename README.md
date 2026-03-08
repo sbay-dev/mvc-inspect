@@ -5,7 +5,7 @@
 [![NuGet](https://img.shields.io/nuget/v/MvcStructureInspector?logo=nuget&label=NuGet)](https://www.nuget.org/packages/MvcStructureInspector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-8.0-purple?logo=dotnet)](https://dotnet.microsoft.com)
-[![Tests](https://img.shields.io/badge/Tests-71%20passed-brightgreen)](https://github.com/sbay-dev/mvc-inspect/actions)
+[![Tests](https://img.shields.io/badge/Tests-93%20passed-brightgreen)](https://github.com/sbay-dev/mvc-inspect/actions)
 [![Product Page](https://img.shields.io/badge/Product%20Page-sbay--dev.github.io-blue)](https://sbay-dev.github.io/mvc-inspect/)
 
 ---
@@ -19,6 +19,7 @@
 - **Static assets** — all files under `wwwroot/` compared via SHA-256 content hashing
 - **Project files** — `.csproj` properties, package references, project references, and `.sln` project registry
 - **Snapshot-based drift detection** — serialize a project baseline, then compare against a live project at any future point
+- **Intelligent `.gitignore` generation** — multi-ecosystem detection (15+ project types), nested/hybrid project awareness, safe merge, custom patterns
 
 ---
 
@@ -79,6 +80,36 @@ mvc-inspect open <report-file>
 
 Opens any report file with the system default viewer.
 
+### Generate `.gitignore`
+
+```bash
+mvc-inspect gitignore <path>
+```
+
+Scans the project directory for all ecosystems and generates a comprehensive `.gitignore`:
+
+- **15+ project types**: .NET, Node.js, Python, Rust, Go, Java, Ruby, PHP, Swift, Dart/Flutter, Unity, Terraform, Docker, Visual Studio, JetBrains
+- **Nested/hybrid detection**: automatically detects projects within projects (e.g., Node.js `ClientApp/` inside a .NET solution)
+- **Safety guarantee**: never overwrites an existing `.gitignore` — creates `.gitignore.generated_*` instead
+- **Merge mode**: `--merge` appends only missing patterns to an existing `.gitignore`
+- **Custom patterns**: `--add` lets you specify additional patterns
+- **Preview mode**: `--preview` shows the output without writing any file
+
+```
+  Scanning: C:\source\MyApp
+  Detected 3 ecosystem(s):
+    • DotNet: 2 location(s)
+        └─ . (via App.sln)
+        └─ src (via Api.csproj)
+    • NodeJs: 1 location(s)
+        └─ ClientApp (via package.json)
+    • Python: 1 location(s)
+        └─ scripts (via requirements.txt)
+  ⚠ 3 nested/hybrid project(s) detected — patterns applied globally.
+[OK] .gitignore saved to:
+     C:\source\MyApp\.gitignore
+```
+
 ---
 
 ## Options
@@ -91,6 +122,14 @@ Opens any report file with the system default viewer.
 | `--no-views` | Exclude `.cshtml` Razor view files |
 | `--cs-only` | Analyze C# source files only |
 | `--no-migrations` | Exclude the `Migrations` directory |
+
+### Gitignore Options
+
+| Option | Description |
+|--------|-------------|
+| `--preview` | Preview the generated `.gitignore` without writing to disk |
+| `--merge` | Merge with existing `.gitignore` (append only unique patterns) |
+| `--add <patterns>` | Add custom ignore patterns (e.g., `--add "*.log" "tmp/" "secrets/"`) |
 
 ---
 
@@ -140,6 +179,7 @@ The report contains six sections:
 
 - **Protected Extensions** — the tool refuses to overwrite sensitive file types (`.cs`, `.csproj`, `.sln`, `.json`, `.dll`, `.exe`, `.key`, `.pfx`, etc.)
 - **Timestamped Reports** — automatic filenames with `yyyyMMdd_HHmmss` pattern prevent accidental overwrites
+- **Gitignore Safety** — `.gitignore` generation never overwrites existing files; validates output paths stay within the project directory
 - **CodeQL Scanning** — every release undergoes automated static security analysis
 - **SBOM Generation** — CycloneDX Software Bill of Materials included with each release
 
@@ -158,6 +198,16 @@ dotnet pack src/MvcStructureInspector.csproj -c Release -o nupkg/
 ---
 
 ## Changelog
+
+### v2.7.0
+- Intelligent `.gitignore` generator with multi-ecosystem detection
+- 15+ project types: .NET, Node.js, Python, Rust, Go, Java, Ruby, PHP, Swift, Dart/Flutter, Unity, Terraform, Docker, Visual Studio, JetBrains
+- Nested/hybrid project awareness (e.g., Node.js inside .NET, Python scripts in a monorepo)
+- Safe merge mode with existing `.gitignore` (append unique patterns only)
+- Custom pattern support via `--add` flag
+- Preview mode via `--preview` flag
+- SecurityGuard: path-based gitignore write validation
+- 93 unit tests (22 new for gitignore generator)
 
 ### v2.6.1
 - Professional NuGet metadata and product page integration

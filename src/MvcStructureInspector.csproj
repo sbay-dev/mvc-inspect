@@ -9,20 +9,20 @@
     <RootNamespace>MvcStructureInspector</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mvc-inspect</ToolCommandName>
-    <Version>2.6.1</Version>
+    <Version>2.7.0</Version>
     <PackageId>MvcStructureInspector</PackageId>
     <Title>MVC Structure Inspector — Static Structural Analysis for ASP.NET Core</Title>
-    <Description>A Roslyn-powered .NET global CLI tool for static structural analysis of ASP.NET Core MVC projects. Generates comprehensive Abstract Syntax Tree traversals, gap analysis reports, and developer checklists across C# source files, Razor views, static assets (wwwroot), project files (.csproj/.sln), and snapshot-based drift detection.</Description>
+    <Description>A Roslyn-powered .NET global CLI tool for static structural analysis of ASP.NET Core MVC projects. Generates comprehensive Abstract Syntax Tree traversals, gap analysis reports, and developer checklists across C# source files, Razor views, static assets (wwwroot), project files (.csproj/.sln), snapshot-based drift detection, and intelligent .gitignore generation with multi-ecosystem detection.</Description>
     <Authors>SBAY-SDK</Authors>
     <Company>SBAY-SDK</Company>
     <Copyright>Copyright © 2025-2026 SBAY-SDK</Copyright>
-    <PackageTags>mvc;aspnetcore;roslyn;static-analysis;code-analysis;gap-analysis;dotnet-tool;csharp;razor;structural-inspection</PackageTags>
+    <PackageTags>mvc;aspnetcore;roslyn;static-analysis;code-analysis;gap-analysis;dotnet-tool;csharp;razor;structural-inspection;gitignore</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageProjectUrl>https://sbay-dev.github.io/mvc-inspect/</PackageProjectUrl>
     <RepositoryUrl>https://github.com/sbay-dev/mvc-inspect</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>v2.6.1: Professional NuGet metadata, product page URL, snapshot-based drift detection (--from-report), wwwroot static file comparison with SHA-256 hashing, 71 unit tests.</PackageReleaseNotes>
+    <PackageReleaseNotes>v2.7.0: Intelligent .gitignore generator with multi-ecosystem detection (15+ project types), nested/hybrid project awareness, safe merge with existing .gitignore, custom pattern support, preview mode. 93 unit tests.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

@@ -137,6 +137,146 @@ if (frIdx >= 0)
     return 0;
 }
 
+// -- Command: gitignore <path> ---------------------------------------------------
+int giIdx = Array.IndexOf(args, "gitignore");
+if (giIdx >= 0 || Array.IndexOf(args, "--gitignore") >= 0)
+{
+    int idx = giIdx >= 0 ? giIdx : Array.IndexOf(args, "--gitignore");
+    if (idx + 1 >= args.Length)
+    {
+        Error("Path required: mvc-inspect gitignore <projectPath>");
+        return 2;
+    }
+
+    string giPath = Path.GetFullPath(args[idx + 1]);
+    if (!Directory.Exists(giPath)) { Error($"Path not found: {giPath}"); return 2; }
+
+    bool preview   = args.Contains("--preview");
+    bool merge     = args.Contains("--merge");
+
+    // Collect custom --add patterns
+    var customPatterns = new List<string>();
+    for (int i = 0; i < args.Length; i++)
+    {
+        if (args[i] == "--add" && i + 1 < args.Length)
+        {
+            for (int j = i + 1; j < args.Length && !args[j].StartsWith("--"); j++)
+                customPatterns.Add(args[j]);
+        }
+    }
+
+    Console.ForegroundColor = ConsoleColor.Cyan;
+    Console.WriteLine($"  Scanning: {giPath}");
+    Console.ResetColor();
+
+    var generator = new GitignoreGenerator();
+    var detected  = generator.DetectProjects(giPath);
+
+    // Display detected ecosystems
+    var ecosystems = detected
+        .Where(d => d.Type is not (GitignoreGenerator.ProjectType.MacOS
+            or GitignoreGenerator.ProjectType.Windows
+            or GitignoreGenerator.ProjectType.Linux))
+        .GroupBy(d => d.Type)
+        .ToList();
+
+    Console.ForegroundColor = ConsoleColor.Yellow;
+    Console.WriteLine($"  Detected {ecosystems.Count} ecosystem(s):");
+    foreach (var eco in ecosystems)
+    {
+        var locations = eco.DistinctBy(e => e.RelativePath).ToList();
+        Console.WriteLine($"    • {eco.Key}: {locations.Count} location(s)");
+        foreach (var loc in locations.Take(5))
+            Console.WriteLine($"        └─ {loc.RelativePath} (via {loc.Indicator})");
+        if (locations.Count > 5)
+            Console.WriteLine($"        └─ ... and {locations.Count - 5} more");
+    }
+    Console.ResetColor();
+
+    var nested = detected.Where(d => d.RelativePath != ".").ToList();
+    if (nested.Count > 0)
+    {
+        Console.ForegroundColor = ConsoleColor.Magenta;
+        Console.WriteLine($"  ⚠ {nested.Count} nested/hybrid project(s) detected — patterns applied globally.");
+        Console.ResetColor();
+    }
+
+    // Check for existing .gitignore
+    string gitignorePath = Path.Combine(giPath, ".gitignore");
+    List<string>? existingPatterns = null;
+    bool gitignoreExists = File.Exists(gitignorePath);
+
+    if (gitignoreExists)
+    {
+        existingPatterns = GitignoreGenerator.ParseExistingGitignore(
+            File.ReadAllText(gitignorePath));
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
+        Console.WriteLine($"  Existing .gitignore found ({existingPatterns.Count} patterns).");
+        Console.ResetColor();
+    }
+
+    string content;
+    if (merge && gitignoreExists)
+    {
+        content = generator.Generate(detected, customPatterns, existingPatterns);
+        if (string.IsNullOrEmpty(content))
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("[OK] Existing .gitignore already covers all detected patterns. Nothing to add.");
+            Console.ResetColor();
+            return 0;
+        }
+    }
+    else
+    {
+        content = generator.Generate(detected, customPatterns);
+    }
+
+    if (preview)
+    {
+        Console.ForegroundColor = ConsoleColor.Gray;
+        Console.WriteLine();
+        Console.WriteLine(content);
+        Console.ResetColor();
+        Console.ForegroundColor = ConsoleColor.DarkGray;
+        Console.WriteLine("\n  [Preview mode — no file written]");
+        Console.ResetColor();
+        return 0;
+    }
+
+    // Safety: NEVER overwrite existing .gitignore
+    string outputPath;
+    if (gitignoreExists && !merge)
+    {
+        outputPath = Path.Combine(giPath, $".gitignore.generated_{DateTime.Now:yyyyMMdd_HHmmss}");
+        Console.ForegroundColor = ConsoleColor.DarkYellow;
+        Console.WriteLine($"  Existing .gitignore preserved. Writing to new file.");
+        Console.ResetColor();
+    }
+    else if (merge && gitignoreExists)
+    {
+        // Append unique patterns to existing file
+        string existing = File.ReadAllText(gitignorePath);
+        content = existing.TrimEnd() + "\n\n" + content;
+        outputPath = gitignorePath;
+    }
+    else
+    {
+        outputPath = gitignorePath;
+    }
+
+    SecurityGuard.AssertSafeGitignoreWrite(outputPath, giPath);
+    File.WriteAllText(outputPath, content);
+
+    Console.ForegroundColor = ConsoleColor.Green;
+    Console.WriteLine($"[OK] .gitignore saved to:");
+    Console.WriteLine($"     {outputPath}");
+    Console.ResetColor();
+
+    if (autoOpen) OpenFile(outputPath);
+    return 0;
+}
+
 // -- Command: open <file> -------------------------------------------------------
 int openIdx = Array.IndexOf(args, "open");
 if (openIdx == 0)
@@ -238,6 +378,7 @@ static void PrintHelp()
     Console.WriteLine("  mvc-inspect <path>                                  Inspect one project  -> saves .txt + .snapshot.json");
     Console.WriteLine("  mvc-inspect --compare <pathA> <pathB>               Gap analysis between two live projects");
     Console.WriteLine("  mvc-inspect --from-report <report> <projectPath>    Compare a saved report snapshot against a live project");
+    Console.WriteLine("  mvc-inspect gitignore <path>                        Generate .gitignore with smart project detection");
     Console.WriteLine("  mvc-inspect open <report-file>                      Open an existing report with the default viewer");
     Console.WriteLine();
     Console.WriteLine("Options:");
@@ -248,10 +389,17 @@ static void PrintHelp()
     Console.WriteLine("  --cs-only           C# files only");
     Console.WriteLine("  --no-migrations     Exclude Migrations folder");
     Console.WriteLine();
+    Console.WriteLine("Gitignore Options:");
+    Console.WriteLine("  --preview           Preview generated .gitignore without writing to disk");
+    Console.WriteLine("  --merge             Merge with existing .gitignore (append unique patterns only)");
+    Console.WriteLine("  --add <patterns>    Add custom patterns (e.g., --add \"*.log\" \"tmp/\" \"secrets/\")");
+    Console.WriteLine();
     Console.WriteLine("Notes:");
     Console.WriteLine("  When inspecting a project, a .snapshot.json file is saved alongside the .txt report.");
     Console.WriteLine("  This snapshot can later be used with --from-report to track structural drift over time.");
-    Console.WriteLine("  You can pass either the .txt or .snapshot.json path to --from-report.");
+    Console.WriteLine("  The gitignore command detects all project ecosystems (including nested/hybrid projects)");
+    Console.WriteLine("  and NEVER overwrites an existing .gitignore — it creates a .gitignore.generated_* file instead.");
+    Console.WriteLine("  Use --merge to safely append missing patterns to an existing .gitignore.");
     Console.WriteLine();
     Console.WriteLine("Examples:");
     Console.WriteLine("  mvc-inspect C:\\source\\MyApp");
@@ -261,5 +409,9 @@ static void PrintHelp()
     Console.WriteLine("  mvc-inspect --compare C:\\source\\RefApp C:\\source\\DevApp --with-proj --open");
     Console.WriteLine("  mvc-inspect --from-report C:\\reports\\baseline.txt C:\\source\\DevApp --open");
     Console.WriteLine("  mvc-inspect --from-report C:\\reports\\baseline.snapshot.json C:\\source\\DevApp");
+    Console.WriteLine("  mvc-inspect gitignore C:\\source\\MyApp");
+    Console.WriteLine("  mvc-inspect gitignore C:\\source\\MyApp --preview");
+    Console.WriteLine("  mvc-inspect gitignore C:\\source\\MyApp --merge");
+    Console.WriteLine("  mvc-inspect gitignore C:\\source\\MyApp --add \"*.log\" \"secrets/\" --merge");
     Console.WriteLine("  mvc-inspect open C:\\source\\MyApp\\mvc-structure_20260306_064429.txt");
 }
