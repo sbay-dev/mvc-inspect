@@ -10,7 +10,7 @@
     <RootNamespace>MvcStructureInspector</RootNamespace>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>mvc-inspect</ToolCommandName>
-    <Version>3.0.0</Version>
+    <Version>3.0.1</Version>
     <PackageId>MvcStructureInspector</PackageId>
     <Title>MVC Structure Inspector — Static Structural Analysis for ASP.NET Core</Title>
     <Description>A Roslyn 5.0-powered .NET 10 global CLI tool for static structural analysis of ASP.NET Core MVC projects. Performs deep AST traversal with C# 14 support — including delegate signatures, lambda/closure analysis, captured variable detection, and expression body inspection. Generates comprehensive structural reports, gap analysis, snapshot-based drift detection, intelligent .gitignore generation, and OS kernel diagnostics via lambda probes.</Description>
@@ -23,7 +23,7 @@
     <RepositoryUrl>https://github.com/sbay-dev/mvc-inspect</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageReleaseNotes>v3.0.0: Upgraded to .NET 10 / C# 14 / Roslyn 5.0.0. Delegate signature detection and lambda/closure analysis with captured variable identification. OS kernel lambda probes (11 diagnostics). Self-verifier expanded to 32 checks across 6 categories. 103 unit tests.</PackageReleaseNotes>
+    <PackageReleaseNotes>v3.0.1: Correct Windows 11 detection (build 22000+), short commit hash display (7 chars). v3.0.0: .NET 10 / C# 14 / Roslyn 5.0.0, delegate/lambda/closure analysis, OS kernel probes, 32 self-checks. 103 unit tests.</PackageReleaseNotes>
   </PropertyGroup>
 
   <ItemGroup>

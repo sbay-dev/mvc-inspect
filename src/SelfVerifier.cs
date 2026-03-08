@@ -32,10 +32,23 @@ public static class SelfVerifier
         var asm = Assembly.GetExecutingAssembly();
         var ver = asm.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? asm.GetName().Version?.ToString() ?? "unknown";
+        // Shorten commit hash to 7 chars (standard git short hash)
+        var plusIdx = ver.IndexOf('+');
+        if (plusIdx >= 0 && ver.Length > plusIdx + 7)
+            ver = ver[..(plusIdx + 8)];
         var product = asm.GetCustomAttribute<AssemblyProductAttribute>()?.Product ?? "MvcStructureInspector";
         var copyright = asm.GetCustomAttribute<AssemblyCopyrightAttribute>()?.Copyright ?? "";
         var framework = System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription;
         return (ver, product, copyright, framework);
+    }
+
+    public static string GetFriendlyOsName()
+    {
+        var desc = System.Runtime.InteropServices.RuntimeInformation.OSDescription;
+        // Windows 11 reports as "Microsoft Windows 10.0.22000+" internally
+        if (OperatingSystem.IsWindows() && Environment.OSVersion.Version.Build >= 22000)
+            desc = desc.Replace("Windows 10.", "Windows 11 10.");
+        return desc;
     }
 
     /// <summary>Formats a verification report to a human-readable string.</summary>
@@ -51,7 +64,7 @@ public static class SelfVerifier
         sb.AppendLine($"  Product     : {product}");
         sb.AppendLine($"  Version     : {ver}");
         sb.AppendLine($"  Runtime     : {framework}");
-        sb.AppendLine($"  OS          : {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+        sb.AppendLine($"  OS          : {GetFriendlyOsName()}");
         sb.AppendLine($"  Architecture: {System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}");
         sb.AppendLine($"  Kernel      : {GetKernelVersion()}");
         sb.AppendLine($"  {copyright}");

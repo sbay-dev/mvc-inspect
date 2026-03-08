@@ -462,7 +462,7 @@ static void PrintVersion()
     Console.WriteLine($"{product} v{ver}");
     Console.ResetColor();
     Console.WriteLine($"  Runtime  : {framework}");
-    Console.WriteLine($"  OS       : {System.Runtime.InteropServices.RuntimeInformation.OSDescription}");
+    Console.WriteLine($"  OS       : {SelfVerifier.GetFriendlyOsName()}");
     Console.WriteLine($"  {copyright}");
     Console.WriteLine($"  License  : MIT");
     Console.WriteLine($"  NuGet    : https://www.nuget.org/packages/MvcStructureInspector");
