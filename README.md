@@ -5,7 +5,7 @@
 [![NuGet](https://img.shields.io/nuget/v/MvcStructureInspector?logo=nuget&label=NuGet)](https://www.nuget.org/packages/MvcStructureInspector)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple?logo=dotnet)](https://dotnet.microsoft.com)
-[![Tests](https://img.shields.io/badge/Tests-103%20passed-brightgreen)](https://github.com/sbay-dev/mvc-inspect/actions)
+[![Tests](https://img.shields.io/badge/Tests-112%20passed-brightgreen)](https://github.com/sbay-dev/mvc-inspect/actions)
 [![Product Page](https://img.shields.io/badge/Product%20Page-sbay--dev.github.io-blue)](https://sbay-dev.github.io/mvc-inspect/)
 
 ---
@@ -189,14 +189,15 @@ MyMvcApp/
 
 ### Gap Analysis Report (`mvc-gap-report_*.txt`)
 
-The report contains six sections:
+The report contains seven sections:
 
 1. **Executive Summary** — quantified gap counts across all categories
 2. **C# File Gaps** — missing, extra, or structurally modified source files
 3. **Type & Member Differentials** — class, interface, method, and property-level changes
 4. **Static File Gaps** — wwwroot content comparison with file sizes and SHA-256 hashes
 5. **Project File Gaps** — `.csproj` property and package reference differentials, `.sln` project registry comparison
-6. **Developer Task Checklist** — actionable items to align project [B] with reference [A]
+6. **Functional Coverage** — namespace-level endpoint analysis with PageModel ↔ Controller cross-pattern matching and coverage percentages
+7. **Developer Task Checklist** — actionable items to align project [B] with reference [A]
 
 ---
 
@@ -223,6 +224,20 @@ dotnet pack src/MvcStructureInspector.csproj -c Release -o nupkg/
 ---
 
 ## Changelog
+
+### v3.1.0
+- **Namespace-level Functional Coverage Engine** — cross-pattern endpoint analysis
+- PageModel handler ↔ Controller action matching (OnGetAsync/OnPostAsync → [HttpGet]/[HttpPost])
+- Per-namespace coverage percentages with visual progress bars
+- Named page handler extraction (OnPostConfirmationAsync → ExternalLogin.Confirmation)
+- Uncovered endpoint detection with full method signatures
+- Section [6] Functional Coverage in gap reports, developer task checklist integration
+- Infrastructure method exclusion (Dispose, OnActionExecuting, etc.)
+- 112 unit tests (9 new for functional coverage)
+
+### v3.0.1
+- Correct Windows 11 detection (build ≥ 22000)
+- Short commit hash display (7 chars, standard git convention)
 
 ### v3.0.0
 - **Upgraded to .NET 10 / C# 14 / Roslyn 5.0.0**

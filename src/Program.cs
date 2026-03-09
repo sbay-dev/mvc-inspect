@@ -100,10 +100,10 @@ if (cmpIdx >= 0)
     Console.ResetColor();
 
     var engine = new ComparisonEngine();
-    var (diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary) = engine.Compare(snapA, snapB);
+    var (diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary, funcCoverage) = engine.Compare(snapA, snapB);
 
     var formatter = new GapReportFormatter();
-    string report = formatter.Format(snapA, snapB, diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary);
+    string report = formatter.Format(snapA, snapB, diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary, funcCoverage);
 
     WriteOutput(report, resolvedOut, autoOpen);
     return 0;
@@ -162,10 +162,10 @@ if (frIdx >= 0)
     Console.ResetColor();
 
     var engine = new ComparisonEngine();
-    var (diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary) = engine.Compare(snapA, snapB);
+    var (diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary, funcCoverage) = engine.Compare(snapA, snapB);
 
     var formatter = new GapReportFormatter();
-    string report = formatter.Format(snapA, snapB, diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary);
+    string report = formatter.Format(snapA, snapB, diffs, razorDiffs, staticDiffs, projDiffs, slnDiff, summary, funcCoverage);
 
     string resolvedOut = outFile ?? Path.Combine(Path.GetFullPath(liveProject),
         $"mvc-gap-report_{DateTime.Now:yyyyMMdd_HHmmss}.txt");

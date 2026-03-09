@@ -18,7 +18,7 @@ public class ComparisonEngineTests
     {
         var dir  = TempProject("Test.cs", "namespace T; public class A { public void M() {} }");
         var snap = new StructureParser(NoViews).Parse(dir);
-        var (diffs, _, _, _, _, summary) = new ComparisonEngine().Compare(snap, snap);
+        var (diffs, _, _, _, _, summary, _) = new ComparisonEngine().Compare(snap, snap);
 
         Assert.Equal(0, summary.FilesOnlyInA);
         Assert.Equal(0, summary.FilesOnlyInB);
@@ -38,7 +38,7 @@ public class ComparisonEngineTests
 
         var opts = new InspectorOptions { IncludeViews = false, IncludeProjectFiles = true };
         var snap = new StructureParser(opts).Parse(dir);
-        var (_, _, _, projDiffs, _, summary) = new ComparisonEngine().Compare(snap, snap);
+        var (_, _, _, projDiffs, _, summary, _) = new ComparisonEngine().Compare(snap, snap);
 
         Assert.Equal(0, summary.ProjOnlyInA);
         Assert.Equal(0, summary.ProjOnlyInB);
@@ -55,7 +55,7 @@ public class ComparisonEngineTests
         var dirB = TempProject("Only_In_B.cs", "public class OnlyB {}");
 
         var parser = new StructureParser(NoViews);
-        var (diffs, _, _, _, _, summary) = new ComparisonEngine()
+        var (diffs, _, _, _, _, summary, _) = new ComparisonEngine()
             .Compare(parser.Parse(dirA), parser.Parse(dirB));
 
         Assert.True(summary.FilesOnlyInA >= 1, "File present in A must be reported as missing in B.");
@@ -71,7 +71,7 @@ public class ComparisonEngineTests
         File.WriteAllText(Path.Combine(dirB, "Extra.cs"), "public class Extra {}");
 
         var parser = new StructureParser(NoViews);
-        var (diffs, _, _, _, _, summary) = new ComparisonEngine()
+        var (diffs, _, _, _, _, summary, _) = new ComparisonEngine()
             .Compare(parser.Parse(dirA), parser.Parse(dirB));
 
         Assert.True(summary.FilesOnlyInB >= 1);
@@ -89,7 +89,7 @@ public class ComparisonEngineTests
             "public class A { public void Foo() {} }");   // Bar missing in B
 
         var parser = new StructureParser(NoViews);
-        var (diffs, _, _, _, _, summary) = new ComparisonEngine()
+        var (diffs, _, _, _, _, summary, _) = new ComparisonEngine()
             .Compare(parser.Parse(dirA), parser.Parse(dirB));
 
         Assert.True(summary.MembersOnlyInA >= 1,
@@ -115,7 +115,7 @@ public class ComparisonEngineTests
 
         var opts = new InspectorOptions { IncludeViews = false, IncludeProjectFiles = true };
         var parser = new StructureParser(opts);
-        var (_, _, _, projDiffs, _, _) = new ComparisonEngine()
+        var (_, _, _, projDiffs, _, _, _) = new ComparisonEngine()
             .Compare(parser.Parse(dirA), parser.Parse(dirB));
 
         var modifiedProj = projDiffs.FirstOrDefault(p => p.Status == DiffStatus.Modified);
@@ -143,7 +143,7 @@ public class ComparisonEngineTests
 
         var opts = new InspectorOptions { IncludeViews = false, IncludeProjectFiles = true };
         var parser = new StructureParser(opts);
-        var (_, _, _, _, slnDiff, summary) = new ComparisonEngine()
+        var (_, _, _, _, slnDiff, summary, _) = new ComparisonEngine()
             .Compare(parser.Parse(dirA), parser.Parse(dirB));
 
         Assert.NotNull(slnDiff);
@@ -163,7 +163,7 @@ public class ComparisonEngineTests
         File.WriteAllText(Path.Combine(dirA, "wwwroot", "css", "site.css"), "body { color: red; }");
 
         var parser = new StructureParser(NoViews);
-        var (_, _, staticDiffs, _, _, summary) = new ComparisonEngine()
+        var (_, _, staticDiffs, _, _, summary, _) = new ComparisonEngine()
             .Compare(parser.Parse(dirA), parser.Parse(dirB));
 
         Assert.True(summary.StaticOnlyInA >= 1, "Static file in A/wwwroot not in B should be reported.");
@@ -181,7 +181,7 @@ public class ComparisonEngineTests
         File.WriteAllText(Path.Combine(dirB, "wwwroot", "js", "app.js"), "console.log('hi');");
 
         var parser = new StructureParser(NoViews);
-        var (_, _, staticDiffs, _, _, summary) = new ComparisonEngine()
+        var (_, _, staticDiffs, _, _, summary, _) = new ComparisonEngine()
             .Compare(parser.Parse(dirA), parser.Parse(dirB));
 
         Assert.True(summary.StaticOnlyInB >= 1);
@@ -201,7 +201,7 @@ public class ComparisonEngineTests
         File.WriteAllText(Path.Combine(dirB, "wwwroot", "style.css"), "body { color: blue; }");
 
         var parser = new StructureParser(NoViews);
-        var (_, _, staticDiffs, _, _, summary) = new ComparisonEngine()
+        var (_, _, staticDiffs, _, _, summary, _) = new ComparisonEngine()
             .Compare(parser.Parse(dirA), parser.Parse(dirB));
 
         Assert.True(summary.StaticModified >= 1, "Changed static file should be reported as modified.");
@@ -218,7 +218,7 @@ public class ComparisonEngineTests
 
         var parser = new StructureParser(NoViews);
         var snap = parser.Parse(dir);
-        var (_, _, staticDiffs, _, _, summary) = new ComparisonEngine().Compare(snap, snap);
+        var (_, _, staticDiffs, _, _, summary, _) = new ComparisonEngine().Compare(snap, snap);
 
         Assert.Equal(0, summary.StaticOnlyInA);
         Assert.Equal(0, summary.StaticOnlyInB);

@@ -116,7 +116,7 @@ public class SnapshotSerializerTests
         var loadedA = SnapshotSerializer.Load(jsonPath);
         var snapB   = parser.Parse(dirB);
 
-        var (_, _, _, _, _, summary) = new ComparisonEngine().Compare(loadedA, snapB);
+        var (_, _, _, _, _, summary, _) = new ComparisonEngine().Compare(loadedA, snapB);
 
         Assert.True(summary.MembersOnlyInA >= 1,
             "Method 'Bar' in saved snapshot should be reported missing from live project.");
@@ -145,7 +145,7 @@ public class SnapshotSerializerTests
         var loadedA = SnapshotSerializer.Load(jsonPath);
         var snapB   = parser.Parse(dirB);
 
-        var (_, _, staticDiffs, _, _, summary) = new ComparisonEngine().Compare(loadedA, snapB);
+        var (_, _, staticDiffs, _, _, summary, _) = new ComparisonEngine().Compare(loadedA, snapB);
 
         Assert.True(summary.StaticModified >= 1);
         Assert.True(staticDiffs.Any(d => d.Status == DiffStatus.Modified));

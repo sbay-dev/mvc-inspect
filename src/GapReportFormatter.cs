@@ -13,7 +13,8 @@ public class GapReportFormatter
         List<FileDiff> diffs, List<RazorFileDiff> razorDiffs,
         List<StaticFileDiff> staticDiffs,
         List<CsprojDiff> projDiffs, SlnDiff? slnDiff,
-        GapSummary summary)
+        GapSummary summary,
+        FunctionalCoverageSummary? functionalCoverage = null)
     {
         var sb = new StringBuilder();
 
@@ -76,6 +77,15 @@ public class GapReportFormatter
             sb.AppendLine($"  .sln projects missing in [B]  : {summary.SlnProjectsOnlyInA}");
             sb.AppendLine($"  .sln projects extra in [B]    : {summary.SlnProjectsOnlyInB}");
             sb.AppendLine($"  .sln projects modified        : {summary.SlnProjectsModified}");
+        }
+        if (functionalCoverage != null)
+        {
+            sb.AppendLine(Line80Thin);
+            sb.AppendLine($"  Functional Coverage           : {functionalCoverage.OverallCoveragePercent}%  ({functionalCoverage.TotalCovered}/{functionalCoverage.TotalEndpointsA} endpoints)");
+            sb.AppendLine($"  Namespaces fully covered      : {functionalCoverage.FullyCovered}");
+            sb.AppendLine($"  Namespaces partially covered  : {functionalCoverage.PartiallyCovered}");
+            sb.AppendLine($"  Namespaces not covered        : {functionalCoverage.NotCovered}");
+            sb.AppendLine($"  Endpoints uncovered in [B]    : {functionalCoverage.TotalUncovered}");
         }
         sb.AppendLine(Line80);
         sb.AppendLine();
@@ -454,8 +464,52 @@ public class GapReportFormatter
             }
         }
 
-        // -- Section 6: Developer task checklist ------------------------------
-        sb.AppendLine("[6] DEVELOPER TASK CHECKLIST");
+        // -- Section 6: Functional coverage ─────────────────────────────────
+        if (functionalCoverage != null)
+        {
+            sb.AppendLine("[6] FUNCTIONAL COVERAGE (Namespace-Level Endpoint Analysis)");
+            sb.AppendLine(Line80Thin);
+            sb.AppendLine();
+            sb.AppendLine($"  Overall Coverage : {functionalCoverage.OverallCoveragePercent}%  ({functionalCoverage.TotalCovered}/{functionalCoverage.TotalEndpointsA} endpoints)");
+            sb.AppendLine($"  Pattern Mapping  : PageModel handlers ↔ Controller actions");
+            sb.AppendLine();
+
+            foreach (var ns in functionalCoverage.NamespaceDetails)
+            {
+                string bar = BuildProgressBar(ns.CoveragePercent, 30);
+                sb.AppendLine($"  ┌─ {ns.NamespaceA}");
+                sb.AppendLine($"  │  Coverage: {bar} {ns.CoveragePercent,5:F1}%  ({ns.Covered}/{ns.TotalEndpoints})");
+                if (ns.MatchedNamespaceB != null)
+                    sb.AppendLine($"  │  Mapped → {ns.MatchedNamespaceB}");
+
+                if (ns.Matches.Any())
+                {
+                    sb.AppendLine($"  │  ── Covered endpoints:");
+                    foreach (var m in ns.Matches)
+                    {
+                        string verb = m.EndpointA.HttpVerb.PadRight(6);
+                        sb.AppendLine($"  │     ✓ [{verb}] {m.EndpointA.FunctionName,-30} ({m.EndpointA.Pattern}: {m.EndpointA.SourceMethod})");
+                        sb.AppendLine($"  │       → {m.EndpointB.SourceClass}.{m.EndpointB.SourceMethod}  [{m.MatchKind}]");
+                    }
+                }
+
+                if (ns.UncoveredEndpoints.Any())
+                {
+                    sb.AppendLine($"  │  ── Uncovered endpoints:");
+                    foreach (var ep in ns.UncoveredEndpoints)
+                    {
+                        string verb = ep.HttpVerb.PadRight(6);
+                        sb.AppendLine($"  │     ✗ [{verb}] {ep.FunctionName,-30} ({ep.Pattern}: {ep.SourceClass}.{ep.SourceMethod})");
+                        sb.AppendLine($"  │       Signature: {ep.Signature}");
+                    }
+                }
+                sb.AppendLine($"  └─");
+                sb.AppendLine();
+            }
+        }
+
+        // -- Section 7: Developer task checklist ------------------------------
+        sb.AppendLine("[7] DEVELOPER TASK CHECKLIST");
         sb.AppendLine(Line80Thin);
         sb.AppendLine();
 
@@ -524,6 +578,16 @@ public class GapReportFormatter
                 sb.AppendLine($"  [ ] {taskNum++:D2}. Fix .sln entry      : {p.Name}");
         }
 
+        // Functional coverage tasks
+        if (functionalCoverage != null)
+        {
+            foreach (var ns in functionalCoverage.NamespaceDetails)
+            {
+                foreach (var ep in ns.UncoveredEndpoints)
+                    sb.AppendLine($"  [ ] {taskNum++:D2}. Implement endpoint  : [{ep.HttpVerb}] {ep.FunctionName}  (from {ep.SourceClass}.{ep.SourceMethod})");
+            }
+        }
+
         sb.AppendLine();
         sb.AppendLine(Line80);
         sb.AppendLine($"  Total: {taskNum - 1} task(s) required to align [B] with [A]");
@@ -538,4 +602,11 @@ public class GapReportFormatter
         < 1024 * 1024  => $"{bytes / 1024.0:F1} KB",
         _              => $"{bytes / (1024.0 * 1024.0):F1} MB"
     };
+
+    private static string BuildProgressBar(double percent, int width)
+    {
+        int filled = (int)Math.Round(percent * width / 100);
+        filled = Math.Clamp(filled, 0, width);
+        return $"[{new string('█', filled)}{new string('░', width - filled)}]";
+    }
 }

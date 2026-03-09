@@ -95,7 +95,8 @@ public class ComparisonEngine
     public (List<FileDiff> Diffs, List<RazorFileDiff> RazorDiffs,
             List<StaticFileDiff> StaticDiffs,
             List<CsprojDiff> ProjDiffs, SlnDiff? SlnDiff,
-            GapSummary Summary) Compare(
+            GapSummary Summary,
+            FunctionalCoverageSummary? FunctionalCoverage) Compare(
         ProjectSnapshot snapA, ProjectSnapshot snapB)
     {
         var diffs = new List<FileDiff>();
@@ -176,12 +177,17 @@ public class ComparisonEngine
             prOnlyA, prOnlyB, prMod,
             slnOnlyA, slnOnlyB, slnMod);
 
+        // ── Functional coverage analysis ────────────────────────────────────
+        var coverageEngine = new FunctionalCoverageEngine();
+        var coverage = coverageEngine.Analyze(snapA, snapB);
+
         return (diffs.Where(d => d.Status != DiffStatus.Identical).ToList(),
                 razorDiffs.Where(d => d.Status != DiffStatus.Identical).ToList(),
                 staticDiffs,
                 projDiffs,
                 slnDiff,
-                summary);
+                summary,
+                coverage.TotalEndpointsA > 0 ? coverage : null);
     }
 
     // ── File-level comparison ────────────────────────────────────────────────
